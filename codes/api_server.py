@@ -146,7 +146,11 @@ DATA = load_all(DATA_DIR)
 
 @app.post("/data/set-dir")
 def set_data_dir(req: DataDirReq):
-    """选择数据目录，重新加载数据（目录接入能力）。"""
+    """选择数据目录，重新加载数据（目录接入能力）。模型闭环: 云端无key→报错。"""
+    from core.model_llm import check_active_model
+    mc = check_active_model()
+    if not mc.get("ok"):
+        return {"ok": False, "error": f"[模型边界] {mc.get('error')} —— 未加载数据", "model_check": mc}
     global DATA_DIR
     d = os.path.abspath(req.dir)
     if not os.path.isdir(d):
@@ -163,7 +167,11 @@ def get_data_dir():
 
 @app.post("/data/upload")
 async def upload_data(files: list[UploadFile] = File(...)):
-    """浏览器选择路径上传数据：保存 CSV 到数据目录并重载。"""
+    """浏览器选择路径上传数据：保存 CSV 到数据目录并重载。模型闭环: 云端无key→报错。"""
+    from core.model_llm import check_active_model
+    mc = check_active_model()
+    if not mc.get("ok"):
+        return {"ok": False, "error": f"[模型边界] {mc.get('error')} —— 未上传", "model_check": mc}
     global DATA_DIR
     os.makedirs(DATA_DIR, exist_ok=True)
     saved = []
@@ -197,7 +205,11 @@ def db_test(req: DbConnReq):
 
 @app.post("/data/db-connect")
 def db_connect(req: DbConnReq):
-    """连接数据库加载表 → 重新本体建模(端口+方法)。"""
+    """连接数据库加载表 → 重新本体建模(端口+方法)。模型闭环: 云端无key→报错。"""
+    from core.model_llm import check_active_model
+    mc = check_active_model()
+    if not mc.get("ok"):
+        return {"ok": False, "error": f"[模型边界] {mc.get('error')} —— 未连接数据库", "model_check": mc}
     global DATA_DIR
     from core import data_mapper as dm
     try:
@@ -254,6 +266,13 @@ def save_model_config(req: ModelConfigReq):
     return {"ok": True, "key": req.key, "models": cfg["models"]}
 
 
+@app.get("/model/check")
+def model_check():
+    """模型使用闭环状态：激活模型可用性 + 边界报错(云端无key明确报错)。"""
+    from core.model_llm import check_active_model
+    return {"ok": True, "check": check_active_model()}
+
+
 @app.get("/ontology")
 def ontology():
     """真实本体 schema(自适应数据) + 图统计 + 约束校验。"""
@@ -272,15 +291,27 @@ def ontology():
 
 @app.get("/modeling/suggest")
 def modeling_suggest():
-    """AI 原生建模：从当前数据自动建议本体 schema（规则兜底确定性 + LLM 可选）。"""
+    """AI 原生建模：展示 无LLM(纯规则) vs 有LLM(规则+大模型增强) 的本体建模区别。
+    LLM 参与: 生成中文label/补充语义; 当前激活模型可用(本地/云端有key)时生效。"""
     from core import modeling
-    schema = modeling.suggest_schema(DATA)
-    # LLM 增强(本地优先, 失败回落)
+    from core.model_llm import check_active_model
+    rule = modeling.suggest_schema(DATA)  # 纯规则(确定性, 零token)
+    llm_enhanced = modeling.suggest_schema(DATA)
+    diff = []
     try:
-        schema = modeling.llm_enhance(schema, use_llm=True)
+        enhanced = modeling.llm_enhance(llm_enhanced, use_llm=True)  # LLM 增强
+        # 提取区别: label 变化
+        rule_labels = {e["id"]: e.get("label") for e in rule["entities"]}
+        for e in enhanced["entities"]:
+            if e.get("label") and e["label"] != rule_labels.get(e["id"]):
+                diff.append({"entity": e["id"], "rule_label": rule_labels.get(e["id"]), "llm_label": e["label"]})
     except Exception:
         pass
-    return {"ok": True, "suggested": schema}
+    return {"ok": True,
+            "rule_only": rule,            # 无LLM建模(纯规则)
+            "llm_enhanced": llm_enhanced,  # 有LLM建模
+            "llm_added": diff,             # LLM 新增/改进的 label
+            "model_check": check_active_model()}
 
 
 @app.get("/graph/full")

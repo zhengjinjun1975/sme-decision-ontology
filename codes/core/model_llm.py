@@ -71,5 +71,26 @@ def llm_generate(prompt: str, temperature: float = 0.1, max_tokens: int = 200) -
     return "[模型不可用]"
 
 
+def check_active_model() -> dict:
+    """模型使用闭环守卫：校验当前激活模型可用性(边界明确报错, 非'怎么都可以')。
+    本地Ollama=离线可用; 云端DeepSeek需api_key否则报错(阻止无key云端使用)。"""
+    cfg = _load_config()
+    active = cfg.get("active", "local_ollama")
+    m = cfg.get("models", {}).get(active, {})
+    if not m.get("base_url") or not m.get("model"):
+        return {"ok": False, "active": active,
+                "error": f"模型配置不完整(缺base_url/model): 请到模型设置配置 '{active}'"}
+    if active == "local_ollama":
+        return {"ok": True, "active": active, "provider": "local",
+                "model": m.get("model"), "note": "本地Ollama(离线可用, 本体建模辅助/问答兜底/摘要)"}
+    # 云端
+    if not m.get("api_key"):
+        return {"ok": False, "active": active, "provider": "cloud",
+                "model": m.get("model"),
+                "error": f"云端模型 '{active}' 未配置API Key：请到模型设置粘贴DeepSeek API Key，或切换回本地模型"}
+    return {"ok": True, "active": active, "provider": "cloud",
+            "model": m.get("model"), "note": f"云端 {m.get('model')}(需网络+有效key)"}
+
+
 if __name__ == "__main__":
     print(llm_generate("用一句话说明补货决策的含义。", temperature=0.1, max_tokens=50))

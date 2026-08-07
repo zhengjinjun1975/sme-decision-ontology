@@ -1,6 +1,6 @@
 {
  "_comment": "模型配置: active 切换。local_ollama=本地默认(离线), cloud=远端DeepSeek降级",
- "active": "cloud",
+ "active": "local_ollama",
  "models": {
   "local_ollama": {
    "name": "本地Ollama",
