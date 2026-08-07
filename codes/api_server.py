@@ -19,7 +19,7 @@ from core.registry import enabled_modules
 import importlib
 import action as act_mod
 
-app = FastAPI(title="sme-decision-ontology API", version="0.1.0", description="本体驱动中小企业数据决策 API")
+app = FastAPI(title="sme-decision-ontology API", version="0.11", description="本体驱动中小企业数据决策 API")
 
 # 前端静态托管（前后端闭环）
 WEB = os.path.join(ROOT, "..", "web")
