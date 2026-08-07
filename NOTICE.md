@@ -13,7 +13,7 @@
    - ERPNext（Frappe，GPL-3.0）—— 再订货水平公式 `reorder_level = (日均出库 × 提前期) + 安全库存`
    - InvenTree（MIT）—— 库存/补货字段设计
    - 供应商评分卡、账龄分析、移动平均预测 —— 通用管理科学方法
-2. **架构与本体建模思路**借鉴同门项目 **factory-ontology**（Apache-2.0，本账号自研）—— 本地、确定性、可解释、零 token 的定位一脉相承。
+2. **设计哲学**（本地、确定性、可解释、零 token）为团队一贯的产品风格，非第三方专属。
 3. **MCP 协议**为行业标准（Model Context Protocol），本实现为标准库 stdio JSON-RPC，非复制特定实现。
 
 ## 数据声明
