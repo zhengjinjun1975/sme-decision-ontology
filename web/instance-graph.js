@@ -15,13 +15,13 @@ async function loadGraphFull(){
   const grp={}; nodes.forEach(n=>{ (grp[n.entity]=grp[n.entity]||[]).push(n); });
   const entityDomain={}; nodes.forEach(n=>{ entityDomain[n.entity]=n.domain||"其他域"; });
 
-  // 域列位置(企业顶部 → 业务域列 → 实体类 → 实例)
+  // 域列位置(企业顶部 → 业务域列 → 实体类 → 实例), 用大坐标空间计算
   const W=1560,H=980, colW=300, topY=70, cx=W/2;
   const pos={};
   pos['__hub__']={x:cx,y:topY};
   const startX=100, gap=280;
   const domainX={}; domains.forEach((d,di)=>{ domainX[d]=startX+di*gap; });
-  const entityY={}; // 实体类的起始y(按域内顺序)
+  const entityY={};
   Object.keys(entityDomain).forEach(et=>{
     const dx=domainX[entityDomain[et]];
     if(!entityY[entityDomain[et]]) entityY[entityDomain[et]]=topY+110;
@@ -33,10 +33,17 @@ async function loadGraphFull(){
     });
     entityY[entityDomain[et]]=y+Math.ceil((grp[et]||[]).length/6)*46+44;
   });
+  // 归一化缩放到容器尺寸(否则layout:'none'原始坐标超出画布→空白)
+  const cw=el.clientWidth||720, ch=el.clientHeight||480;
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  Object.values(pos).forEach(p=>{ minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y); });
+  const sx=(cw-60)/((maxX-minX)||1), sy=(ch-60)/((maxY-minY)||1), s=Math.min(sx,sy,1);
+  Object.keys(pos).forEach(k=>{ pos[k]={x:30+(pos[k].x-minX)*s, y:30+(pos[k].y-minY)*s}; });
+  const cx2=cw/2, topY2=pos['__hub__'].y;
 
   // ECharts graph
   const categories=Object.keys(grp).map(et=>({name:et}));
-  const data=[{id:'__hub__',name:'企业',x:cx,y:topY,category:null,symbolSize:64,
+  const data=[{id:'__hub__',name:'企业',x:cx2,y:topY2,category:null,symbolSize:64,
                itemStyle:{color:'#2f6bff'},label:{show:true,fontSize:16,fontWeight:'bold',color:'#fff'}}];
   nodes.forEach(n=>{
     const p=pos[n.id];
