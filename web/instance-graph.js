@@ -68,7 +68,7 @@ async function loadGraphFull(){
   // 先建 chart div + legend(避免 innerHTML+= 清掉 canvas)
   el.innerHTML=`<div id="ontchart" style="height:480px;width:100%"></div>
     <div style="padding:6px 2px;font-size:11px;color:var(--dim)">${nodes.length} 实例 · ${edges.length} 关系 · 拖动缩放看全图 · 悬停看详情 · 动态域(${domains.join('/')})</div>
-    <div style="padding:2px">${legend} <button class="set" style="padding:6px 14px;font-size:12px;float:right" onclick="exportPng()">💾 导出完整图到桌面</button></div>`;
+    <div style="padding:2px">${legend}</div>`;
   if(window._ontChart) window._ontChart.dispose();  // 防重复 init
   const chart=echarts.init(document.getElementById('ontchart'));
   chart.setOption({
