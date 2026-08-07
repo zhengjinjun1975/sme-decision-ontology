@@ -1,0 +1,28 @@
+# sme-decision-ontology — 一键部署
+# 用法: docker compose up -d
+# 访问: http://<服务器IP>:8000  (Web 前端 + API 同端口)
+# 数据: 挂载 ./data 放真实台账 CSV, 重启自动加载
+services:
+  api:
+    build: .
+    container_name: sme-decision-api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    volumes:
+      # 挂载数据目录: 放真实(脱敏)企业台账 CSV, 决策自动读取
+      - ./data:/app/data
+      - ./config:/app/config
+
+  # HTTPS 反向代理(可选, 配好证书后启用)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: sme-decision-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+  #     - ./certs:/etc/nginx/certs:ro
+  #   depends_on: [api]
+  #   restart: unless-stopped

@@ -1,0 +1,9 @@
+# sme-decision-ontology 运行时依赖
+# 决策规则引擎是纯标准库零依赖; 仅 Web API 前端需要这些
+fastapi
+uvicorn[standard]
+
+# 可选多数据源对接(按需安装)
+# pymysql        # MySQL 对接(load_mysql)
+# psycopg2-binary  # PostgreSQL 对接(load_pg)
+# openpyxl       # Excel 读取(load_excel)
