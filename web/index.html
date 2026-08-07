@@ -104,6 +104,23 @@ h1 span{color:var(--blue)}
     <div class="upload-msg" id="upload-msg"></div>
     <div id="data-sources"><div class="empty">加载中…</div></div>
     <p style="color:var(--dim);font-size:11px;margin-top:12px">点「浏览选择数据目录」从本地选台账 CSV 所在文件夹，自动上传并加载。也支持 SQLite/MySQL/PostgreSQL 对接。</p>
+
+    <h2 style="margin-top:20px"><span class="dot" style="background:var(--blue)"></span>数据库接入（MySQL/PostgreSQL）</h2>
+    <div class="setdir">
+      <select id="dbtype" style="padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:13px">
+        <option value="mysql">MySQL</option><option value="pg">PostgreSQL</option>
+      </select>
+      <input class="path" id="dbhost" placeholder="主机(如 192.168.1.10)" value="localhost" style="max-width:150px">
+      <input class="path" id="dbport" placeholder="端口" style="max-width:70px">
+      <input class="path" id="dbuser" placeholder="用户" value="root" style="max-width:90px">
+      <input class="path" id="dbpass" type="password" placeholder="密码" style="max-width:90px">
+      <input class="path" id="dbname" placeholder="数据库名" style="max-width:110px">
+    </div>
+    <div class="setdir">
+      <button class="set" onclick="dbTest()">🔌 测试连接</button>
+      <button class="browse" onclick="dbConnect()">📥 连接并加载</button>
+    </div>
+    <div class="upload-msg" id="db-msg"></div>
   </div>
 </div>
 
@@ -188,6 +205,27 @@ async function setDataDir(){
   const r=await api('/data/set-dir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dir})});
   if(r.ok){document.getElementById('upload-msg').textContent='✅ 已切换目录';loadData();loadSummary();loadDecision();}
   else{document.getElementById('upload-msg').textContent='❌ 目录无效: '+r.error;}
+}
+function dbParams(){
+  return {db_type:document.getElementById('dbtype').value,
+    host:document.getElementById('dbhost').value.trim(),
+    port:parseInt(document.getElementById('dbport').value.trim())||(document.getElementById('dbtype').value==='pg'?5432:3306),
+    user:document.getElementById('dbuser').value.trim(),
+    password:document.getElementById('dbpass').value,
+    db:document.getElementById('dbname').value.trim()};
+}
+async function dbTest(){
+  const p=dbParams();
+  if(!p.db){document.getElementById('db-msg').textContent='❌ 请填数据库名';return;}
+  const r=await api('/data/db-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+  document.getElementById('db-msg').textContent=(r.ok?'✅ ':'❌ ')+r.detail;
+}
+async function dbConnect(){
+  const p=dbParams();
+  if(!p.db){document.getElementById('db-msg').textContent='❌ 请填数据库名';return;}
+  const r=await api('/data/db-connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+  if(r.ok){document.getElementById('db-msg').textContent=`✅ 已连接 ${r.db}, 加载表: ${r.loaded_tables.join(', ')}`;loadData();loadSummary();loadDecision();}
+  else{document.getElementById('db-msg').textContent='❌ '+r.error;}
 }
 async function loadSummary(){
   const r=await api('/decision/summary');

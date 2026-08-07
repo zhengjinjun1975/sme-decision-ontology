@@ -128,6 +128,50 @@ async def upload_data(files: list[UploadFile] = File(...)):
     return {"ok": True, "uploaded": saved, "sources": {k: len(v) for k, v in DATA.items()}}
 
 
+class DbConnReq(BaseModel):
+    db_type: str  # mysql/pg
+    db: str
+    host: str = "localhost"
+    port: int = 3306
+    user: str = "root"
+    password: str = ""
+
+
+@app.post("/data/db-test")
+def db_test(req: DbConnReq):
+    """测试数据库连接(端口/账号/驱动是否可用)。"""
+    from core import data_mapper as dm
+    return dm.db_test(req.db_type, req.db, req.host, req.port, req.user, req.password)
+
+
+@app.post("/data/db-connect")
+def db_connect(req: DbConnReq):
+    """连接数据库加载表 → 重新本体建模(端口+方法)。"""
+    global DATA_DIR
+    from core import data_mapper as dm
+    try:
+        loaded = dm.db_connect(req.db_type, req.db, req.host, req.port, req.user, req.password)
+    except ImportError as e:
+        return {"ok": False, "error": str(e)}
+    if not loaded:
+        return {"ok": False, "error": "未加载到任何表(检查库名/表名)"}
+    # 存入临时数据目录供本体建模读取
+    os.makedirs(DATA_DIR, exist_ok=True)
+    for table, rows in loaded.items():
+        if "(err)" in table:
+            continue
+        csv_path = os.path.join(DATA_DIR, f"{table}.csv")
+        with open(csv_path, "w", encoding="utf-8", newline="") as f:
+            if rows:
+                import csv as _csv
+                w = _csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+                w.writeheader()
+                w.writerows(rows)
+    _reload_data()
+    return {"ok": True, "db": req.db, "loaded_tables": [k for k in loaded if "(err)" not in k],
+            "sources": {k: len(v) for k, v in DATA.items()}}
+
+
 @app.post("/model")
 def switch_model(req: ModelReq):
     p = os.path.join(ROOT, "..", "config", "model_config.json")

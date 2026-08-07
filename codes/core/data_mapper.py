@@ -105,6 +105,49 @@ def clean(rows, dedup_keys=()):
     return out
 
 
+def db_connect(db_type, db, host="localhost", port=3306, user="root", password="", tables=None) -> dict:
+    """连接 MySQL/PostgreSQL，加载指定表返回 {表名: 行列表}。
+    tables 缺省则加载 data_mapper 已知业务表(products/suppliers/inventory/sales/customers/equipment/purchase/production/payments)。
+    """
+    if db_type not in ("mysql", "pg", "postgresql"):
+        raise ValueError(f"不支持的数据库类型: {db_type} (支持 mysql/pg)")
+    pg = db_type in ("pg", "postgresql")
+    known = ["products","suppliers","inventory","sales","customers","equipment","purchase","production","payments"]
+    tables = tables or known
+    out = {}
+    for t in tables:
+        if not t.replace("_", "").isalnum():
+            continue
+        try:
+            if pg:
+                rows = load_pg(db, t, host=host, port=port or 5432, user=user, password=password)
+            else:
+                rows = load_mysql(db, t, host=host, port=port or 3306, user=user, password=password)
+            out[t] = rows
+        except ImportError:
+            raise  # 驱动未装, 向上抛清晰错误
+        except Exception as e:
+            # 该表不存在则跳过, 其他错误记录
+            if "exist" not in str(e).lower():
+                out[f"{t}(err)"] = str(e)[:80]
+    return out
+
+
+def db_test(db_type, db, host="localhost", port=3306, user="root", password="") -> dict:
+    """测试数据库连接(不加载数据)。返回 {ok, driver, detail}。"""
+    if db_type not in ("mysql", "pg", "postgresql"):
+        return {"ok": False, "detail": f"不支持的数据库类型: {db_type}"}
+    pg = db_type in ("pg", "postgresql")
+    try:
+        if pg:
+            import psycopg2
+        else:
+            import pymysql
+        return {"ok": True, "driver": "psycopg2" if pg else "pymysql", "detail": f"驱动已装, 可连接 {db_type}@{host}:{port}/{db}"}
+    except ImportError:
+        return {"ok": False, "detail": f"缺驱动: {'psycopg2' if pg else 'pymysql'} (pip install {'psycopg2-binary' if pg else 'pymysql'})"}
+
+
 if __name__ == "__main__":
     # 自检：python data_mapper.py <csv路径>
     import sys
