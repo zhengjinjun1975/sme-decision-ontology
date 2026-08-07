@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中小企决策套件</title>
+<style>
+:root{--bg:#0f1117;--card:rgba(255,255,255,.06);--line:rgba(255,255,255,.1);--fg:#e6e8ef;--dim:#8b93a7;
+--red:#e74c3c;--orange:#f39c12;--yellow:#f1c40f;--green:#27ae60;--blue:#3498db;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,"Microsoft YaHei",sans-serif;min-height:100vh;
+background-image:radial-gradient(circle at 20% 20%,rgba(52,152,219,.12),transparent 40%),radial-gradient(circle at 80% 80%,rgba(39,174,96,.1),transparent 40%);}
+.wrap{max-width:1100px;margin:0 auto;padding:24px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+h1{font-size:20px;font-weight:600}
+h1 span{color:var(--blue)}
+.sub{color:var(--dim);font-size:12px;margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;backdrop-filter:blur(12px)}
+.card h2{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block}
+.item{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.03);margin-bottom:8px;border:1px solid transparent}
+.item:hover{border-color:var(--line)}
+.item .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.item .entity{font-weight:600;font-size:13px}
+.item .action{color:var(--fg);font-size:13px}
+.item .reason{color:var(--dim);font-size:11px;margin-top:4px}
+.tag{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
+.tag.告急,.tag.紧急{background:rgba(231,76,60,.2);color:var(--red)}
+.tag.预警,.tag.高{background:rgba(243,156,18,.2);color:var(--orange)}
+.tag.建议,.tag.中{background:rgba(52,152,219,.2);color:var(--blue)}
+.ask{display:flex;gap:10px;margin-bottom:16px}
+.ask input{flex:1;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.05);
+color:var(--fg);font-size:14px;outline:none}
+.ask input:focus{border-color:var(--blue)}
+.ask button{padding:12px 22px;border-radius:12px;border:none;background:var(--blue);color:#fff;font-size:14px;cursor:pointer;font-weight:600}
+.ask button:hover{filter:brightness(1.15)}
+.nav{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.nav button{padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer;font-size:13px}
+.nav button.active,.nav button:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+.count{color:var(--dim);font-size:11px;margin-left:auto}
+.empty{color:var(--dim);font-size:13px;padding:20px;text-align:center}
+.thr{display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--line)}
+.thr span:last-child{color:var(--blue);font-weight:600}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div><h1>⚙️ <span>中小企决策套件</span></h1><div class="sub">sme-decision-ontology · 本地 · 确定性 · 可解释</div></div>
+  <div class="count" id="status">连接中…</div>
+</header>
+
+<div class="ask">
+  <input id="q" placeholder="自然语言问决策：如「库存补货」「设备维护」「采购和库存」" onkeydown="if(event.key==='Enter')nlAsk()">
+  <button onclick="nlAsk()">问决策</button>
+</div>
+
+<div class="nav" id="nav"></div>
+
+<div class="grid">
+  <div class="card" style="grid-column:1/-1">
+    <h2><span class="dot"></span>决策建议 <span class="count" id="totalCount"></span></h2>
+    <div id="decisions"><div class="empty">加载中…</div></div>
+  </div>
+  <div class="card">
+    <h2><span class="dot" style="background:var(--orange)"></span>行动清单</h2>
+    <div id="actions"><div class="empty">加载中…</div></div>
+  </div>
+  <div class="card">
+    <h2><span class="dot" style="background:var(--green)"></span>决策阈值</h2>
+    <div id="thresholds"><div class="empty">加载中…</div></div>
+  </div>
+</div>
+</div>
+
+<script>
+const MODULES=[["inventory","库存"],["procurement","采购"],["sales","销售/信用"],["equipment","设备"]];
+let allDecisions={};
+async function api(path){const r=await fetch(path);return r.json();}
+function esc(s){return String(s||"").replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
+function item(s){
+  const tag=esc(s.level),ent=esc(s.entity),act=esc(s.action),rea=esc(s.reason);
+  return `<div class="item"><div class="top"><span class="entity">${ent}</span><span class="tag ${tag}">${tag}</span></div>
+  <div class="action">${act}</div><div class="reason">${rea}</div></div>`;
+}
+function renderDecisions(module){
+  const el=document.getElementById('decisions');
+  const sug=(module?allDecisions[module]:Object.values(allDecisions).flat())||[];
+  document.getElementById('totalCount').textContent=`${sug.length} 条`;
+  el.innerHTML=sug.length? sug.map(item).join('') : '<div class="empty">无决策建议</div>';
+}
+async function loadAll(){
+  const d=await api('/decisions'); allDecisions=d.decisions;
+  document.getElementById('status').textContent='已连接';
+  document.getElementById('nav').innerHTML=MODULES.map(([m,label],i)=>
+    `<button class="${i===0?'active':''}" onclick="selModule('${m}',this)">${label}<span class="count">${(allDecisions[m]||[]).length}</span></button>`).join('')
+    +`<button onclick="selModule('',this)">全部</button>`;
+  renderDecisions('inventory');
+  const a=await api('/actions');
+  document.getElementById('actions').innerHTML=(a.actions||[]).slice(0,8).map(x=>
+    `<div class="item"><div class="top"><span class="entity">${esc(x.type)}</span><span class="tag ${esc(x.priority)}">${esc(x.priority)}</span></div>
+    <div class="action">${esc(x.action)}</div><div class="reason">${esc(x.reason||'')}</div></div>`).join('')
+    ||'<div class="empty">无待办行动</div>';
+  const t=await api('/thresholds');
+  const flat=Object.entries(t).flatMap(([k,v])=>Object.entries(v));
+  document.getElementById('thresholds').innerHTML=flat.map(([k,v])=>
+    `<div class="thr"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
+}
+function selModule(m,btn){
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderDecisions(m);
+}
+async function nlAsk(){
+  const q=document.getElementById('q').value.trim();
+  if(!q)return;
+  const r=await api('/ask?'+new URLSearchParams({})); // placeholder, 用 POST
+  const res=await fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(r=>r.json());
+  if(res.mode==='miss'){renderRaw([{level:'提示',entity:'—',action:res.answer,reason:''}]);}
+  else if(res.mode==='confirm'){renderRaw([{level:'提示',entity:'—',action:'问题涉及多个决策域：'+res.candidates.join('/')+'，请具体指定',reason:res.answer}]);}
+  else{renderDecisions(res.module);}
+}
+function renderRaw(list){document.getElementById('decisions').innerHTML=list.map(item).join('');}
+loadAll();
+</script>
+</body>
+</html>

@@ -58,10 +58,11 @@ python -m pytest tests/                   # Golden test(决策规则单测)
 - 设备 → **维护工单**
 - 可导出 CSV（`python action.py`）
 
-## API
+## API + Web 前端
 
 ```bash
-python -m uvicorn codes.api_server:app   # 启动 API
+python -m uvicorn codes.api_server:app --port 8000   # 启动 API + 前端
+# 打开 http://localhost:8000  → 暗色决策看板(决策建议/行动清单/阈值/NL问决策)
 GET  /decisions/inventory   # 跑某决策模块
 GET  /decisions            # 全部决策
 GET  /actions              # 行动清单

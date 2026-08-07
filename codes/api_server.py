@@ -11,6 +11,8 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from core.domain_model import load_all
 from core.registry import enabled_modules
@@ -18,6 +20,16 @@ import importlib
 import action as act_mod
 
 app = FastAPI(title="sme-decision-ontology API", version="0.1.0", description="本体驱动中小企业数据决策 API")
+
+# 前端静态托管（前后端闭环）
+WEB = os.path.join(ROOT, "..", "web")
+if os.path.isdir(WEB):
+    app.mount("/static", StaticFiles(directory=WEB), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse(os.path.join(WEB, "index.html"))
 
 DATA = load_all(os.path.join(ROOT, "..", "data"))
 
