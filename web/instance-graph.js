@@ -45,18 +45,18 @@ async function loadGraphFull(){
   const categories=Object.keys(grp).map(et=>({name:et}));
   const data=[{id:'__hub__',name:'企业',x:cx2,y:topY2,category:null,symbolSize:64,
                itemStyle:{color:'#2f6bff'},label:{show:true,fontSize:16,fontWeight:'bold',color:'#fff'}}];
+  const nodeIds=new Set(['__hub__']);
   nodes.forEach(n=>{
-    const p=pos[n.id];
+    const p=pos[n.id]; if(!p)return;  // 守卫: 无位置节点跳过
+    nodeIds.add(n.id);
     data.push({id:n.id,name:n.name||n.id_val,x:p.x,y:p.y,
       category:categories.findIndex(c=>c.name===n.entity),
       symbolSize:n.entity==='Category'?16:10,
       itemStyle:{color:GRAPH_COLORS[n.entity]||'#7f8c8d'},
       tooltip:{formatter:`<b>${n.entity}</b> ${n.name||n.id_val}<br/>域: ${n.domain||''}`}});
   });
-  const links=edges.map(e=>({source:e.from,target:e.to}));
-  Object.keys(entityDomain).forEach(et=>{
-    const p=pos['__cls__'+et]; if(p) links.push({source:'__hub__',target:'__cls__'+et,lineStyle:{opacity:0.2}});
-  });
+  // links 只保留两端都在 data 的(否则 ECharts 引用不存在节点→渲染异常)
+  const links=edges.map(e=>({source:e.from,target:e.to})).filter(l=>nodeIds.has(l.source)&&nodeIds.has(l.target));
   const legend=Object.entries(GRAPH_COLORS).filter(([k])=>grp[k]).map(([k,v])=>`<span style="display:inline-block;margin-right:12px;font-size:11px;color:var(--dim)"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${v};margin-right:4px"></i>${k}</span>`).join('');
   // 先建 chart div + legend(避免 innerHTML+= 清掉 canvas)
   el.innerHTML=`<div id="ontchart" style="height:480px;width:100%"></div>
