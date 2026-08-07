@@ -178,6 +178,19 @@ def modeling_suggest():
     return {"ok": True, "suggested": schema}
 
 
+@app.get("/graph/full")
+def graph_full():
+    """完整企业实例图（146 节点/120 边），供前端生成真实 SVG 大图。"""
+    from core import ontology as ont
+    schema = ont.load_schema(os.path.join(ROOT, "..", "config", "ontology.json"))
+    g = ont.build_graph(DATA, schema)
+    nodes = [{"id": nid, "entity": n["entity"], "label": n["data"].get("name") or n["data"].get("id"),
+              "id_val": n["id"], "data": {k: v for k, v in n["data"].items() if k in ("name", "category", "stock", "safety_stock", "cost", "price", "status", "aging_days", "credit_limit", "on_time_pct", "qty")}}
+             for nid, n in g["nodes"].items()]
+    edges = [{"from": e["from"], "to": e["to"], "rel": e["rel"], "label": e["label"]} for e in g["edges"]]
+    return {"ok": True, "nodes": nodes, "edges": edges, "counts": {"nodes": len(nodes), "edges": len(edges)}}
+
+
 @app.get("/graph/{entity}/{eid}")
 def graph_traverse(entity: str, eid: str):
     """本体图遍历（跨域）：从某实体实例出发的相关实体。"""
