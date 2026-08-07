@@ -214,11 +214,35 @@ async function loadOntology(){
   const r=await api('/ontology');
   if(!r.ok){document.getElementById('ontology-graph').innerHTML='<div class="empty">加载失败</div>';return;}
   const m=r.model;
-  document.getElementById('ontology-graph').innerHTML=
-    `<div class="empty" style="text-align:left;padding:8px 0 12px">本体图: ${r.graph.nodes} 节点 · ${r.graph.edges} 关系边 · 约束校验 ${r.validation.issues.filter(i=>i.severity==='error').length} 错误</div>`+
-    m.entities.map(e=>
-    `<div class="onto-node"><div class="n-name">${esc(e.label)}</div><div class="n-cn">${esc(e.id)}</div></div>
-     ${m.entities.indexOf(e)===m.entities.length-1?'':'<div class="onto-rel">↔</div>'}`).join('');
+  // 大图: 全企业知识图谱 SVG(产品中心, 各实体环绕, 关系连线)
+  const counts={}; m.entities.forEach(e=>{const t=Object.values(allDecisions||{}).flat().filter(s=>s.entity&&s.entity.includes(e.id)).length; counts[e.id]=t;});
+  const ent=m.entities;
+  const center={x:340,y:170};
+  const angle=2*Math.PI/ent.length;
+  const pos={};
+  ent.forEach((e,i)=>{pos[e.id]={x:center.x+Math.cos(angle*i-1.2)*170, y:center.y+Math.sin(angle*i-1.2)*120};});
+  let svg=`<svg width="680" height="340" viewBox="0 0 680 340" style="background:var(--card);border-radius:12px">
+    <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#d6e4ff"/></marker></defs>`;
+  // 关系边
+  (m.relations||[]).forEach(rl=>{
+    const a=pos[rl.from],b=pos[rl.to];
+    if(!a||!b)return;
+    svg+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#d6e4ff" stroke-width="1.5" marker-end="url(#arr)"/>`;
+    svg+=`<text x="${(a.x+b.x)/2}" y="${(a.y+b.y)/2-4}" font-size="10" fill="#6b7a90" text-anchor="middle">${esc(rl.label||rl.id)}</text>`;
+  });
+  // 中心企业节点
+  svg+=`<circle cx="${center.x}" cy="${center.y}" r="42" fill="#2f6bff" opacity=".9"/><text x="${center.x}" y="${center.y-4}" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">企业</text><text x="${center.x}" y="${center.y+12}" fill="#fff" font-size="10" text-anchor="middle">${r.graph.nodes}节点/${r.graph.edges}边</text>`;
+  // 实体节点
+  ent.forEach(e=>{
+    const p=pos[e.id];
+    const cnt=allDecisions&&allDecisions[e.table]?allDecisions[e.table].length:(counts[e.id]||0);
+    svg+=`<g><rect x="${p.x-58}" y="${p.y-24}" width="116" height="48" rx="10" fill="#eaf0ff" stroke="#d6e4ff"/>
+    <text x="${p.x}" y="${p.y-2}" font-size="13" font-weight="700" fill="#2f6bff" text-anchor="middle">${esc(e.label)}</text>
+    <text x="${p.x}" y="${p.y+14}" font-size="10" fill="#6b7a90" text-anchor="middle">${esc(e.id)}</text></g>`;
+  });
+  svg+=`</svg>`;
+  document.getElementById('ontology-graph').innerHTML=svg+
+    `<div class="empty" style="text-align:left;padding:8px 0">本体图: ${r.graph.nodes} 节点 · ${r.graph.edges} 关系边 · 约束校验 ${r.validation.issues.filter(i=>i.severity==='error').length} 错误 · 一本体多决策(8决策共享实体关系)</div>`;
   document.getElementById('ontology-entities').innerHTML=m.entities.map(e=>
     `<div class="entity-card"><div><div class="label">${esc(e.label)} <span style="font-weight:400;color:var(--dim)">${esc(e.id)} · ${esc(e.table)}</span></div>
     <div class="fields">${esc((e.attributes||[]).map(a=>a.label+'('+a.type+')').join(' · '))}</div></div></div>`).join('');
@@ -229,17 +253,27 @@ async function loadOntology(){
 async function loadModel(){
   const r=await api('/model');
   if(!r.ok)return;
+  // 模型设置: 默认收起, 点开配置→保存→收起
   document.getElementById('model-list').innerHTML=Object.entries(r.models).map(([k,v])=>
     `<div class="model-item">
       <div class="m-head"><span class="name">${esc(v.name||k)}</span>
-      <button class="${k===r.active?'green':''}" onclick="switchModel('${k}')">${k===r.active?'✓ 使用中':'切换'}</button></div>
-      <input id="m-${k}-name" value="${esc(v.name||'')}" placeholder="名称">
-      <input id="m-${k}-type" value="${esc(v.type||'')}" placeholder="类型(ollama/openai)">
-      <input id="m-${k}-url" value="${esc(v.base_url||'')}" placeholder="Base URL">
-      <input id="m-${k}-model" value="${esc(v.model||'')}" placeholder="模型名">
-      <input id="m-${k}-key" value="${esc(v.api_key||'')}" placeholder="API Key">
-      <div class="m-actions"><button class="green" onclick="saveModel('${k}')">保存配置</button></div>
+      <span><button class="${k===r.active?'green':''}" onclick="switchModel('${k}')">${k===r.active?'✓ 使用中':'切换'}</button>
+      <button onclick="toggleModel('${k}',this)">⚙️ 配置</button></span></div>
+      <div class="m-cfg" id="cfg-${k}" style="display:none">
+        <input id="m-${k}-name" value="${esc(v.name||'')}" placeholder="名称">
+        <input id="m-${k}-type" value="${esc(v.type||'')}" placeholder="类型(ollama/openai)">
+        <input id="m-${k}-url" value="${esc(v.base_url||'')}" placeholder="Base URL">
+        <input id="m-${k}-model" value="${esc(v.model||'')}" placeholder="模型名">
+        <input id="m-${k}-key" value="${esc(v.api_key||'')}" placeholder="API Key">
+        <div class="m-actions"><button class="green" onclick="saveModel('${k}')">保存配置</button></div>
+      </div>
     </div>`).join('');
+}
+function toggleModel(k,btn){
+  const el=document.getElementById('cfg-'+k);
+  const show=el.style.display==='none';
+  el.style.display=show?'block':'none';
+  btn.textContent=show?'收起':'⚙️ 配置';
 }
 function modelCfg(k){
   const g=id=>document.getElementById('m-'+k+'-'+id).value.trim();
@@ -248,7 +282,11 @@ function modelCfg(k){
 async function saveModel(k){
   const r=await api('/model/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:k,config:modelCfg(k)})});
   document.getElementById('status').textContent=r.ok?`模型 ${k} 已保存`:'保存失败';
-  if(r.ok)loadModel();
+  if(r.ok){ // 保存后收起
+    const el=document.getElementById('cfg-'+k);
+    if(el)el.style.display='none';
+    loadModel();
+  }
 }
 async function switchModel(k){
   const r=await api('/model',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:k})});
