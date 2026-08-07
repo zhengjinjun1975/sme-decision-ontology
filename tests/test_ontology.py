@@ -26,17 +26,24 @@ def test_validate_clean():
 
 
 def test_build_graph_cross_domain():
-    """跨表跨域建图: 154 节点 / 224 边(含类别类层级 + 客户关系)"""
+    """跨表跨域建图: 178 节点 / 264 边(企业级价值链本体)"""
     g = ont.build_graph(DATA, SCHEMA)
-    assert len(g["nodes"]) == 154  # 146实例 + 8类别类
-    assert len(g["edges"]) == 224  # 16供应+16库存+88销售+88客户+16isA
+    assert len(g["nodes"]) == 178  # 154 + 8采购 + 8生产 + 8回款
+    assert len(g["edges"]) == 264  # 16供应+16库存+88销售+88客户+16isA+8采购From+8采购+8生产+8设备+8回款
 
 
 def test_customer_relation():
-    """企业↔客户关系: 销售售予客户(88条)"""
+    """企业↔客户关系: 销售售予客户(88条 hasCustomer)"""
     g = ont.build_graph(DATA, SCHEMA)
-    cust = [e for e in g["edges"] if e["to"].startswith("Customer:")]
+    cust = [e for e in g["edges"] if e["rel"] == "hasCustomer"]
     assert len(cust) == 88
+
+
+def test_value_chain():
+    """企业级价值流: 采购/生产/回款关系"""
+    g = ont.build_graph(DATA, SCHEMA)
+    rels = {e["rel"] for e in g["edges"]}
+    assert {"purchaseFrom", "purchases", "produces", "usesEquipment", "paidBy"} <= rels
 
 
 def test_category_hierarchy():
@@ -49,10 +56,10 @@ def test_category_hierarchy():
 
 
 def test_traverse():
-    """图遍历(跨域): Supplier S01 → 3 供应"""
+    """图遍历(跨域): Supplier S01 → 3供应 + 2采购"""
     g = ont.build_graph(DATA, SCHEMA)
     rel = ont.traverse(g, "Supplier", "S01")
-    assert len(rel) == 3  # S01 供应 P01/P02/P05
+    assert len(rel) == 5  # S01 供应 P01/P02/P05 + 采购 PR01/PR03
 
 
 def test_ai_modeling():

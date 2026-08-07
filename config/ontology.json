@@ -53,6 +53,35 @@
         {"name": "warranty_months", "type": "number", "label": "保修(月)"},
         {"name": "status", "type": "enum", "label": "状态"}
       ]
+    },
+    {
+      "id": "Purchase", "label": "采购", "table": "purchase", "key": "id", "detail": true,
+      "attributes": [
+        {"name": "supplier_id", "type": "string", "label": "供应商"},
+        {"name": "product_id", "type": "string", "label": "产品"},
+        {"name": "qty", "type": "number", "label": "数量"},
+        {"name": "date", "type": "date", "label": "日期"},
+        {"name": "amount", "type": "number", "label": "金额"}
+      ]
+    },
+    {
+      "id": "Production", "label": "生产", "table": "production", "key": "id", "detail": true,
+      "attributes": [
+        {"name": "product_id", "type": "string", "label": "产品"},
+        {"name": "equipment_id", "type": "string", "label": "设备"},
+        {"name": "qty", "type": "number", "label": "数量"},
+        {"name": "date", "type": "date", "label": "日期"},
+        {"name": "status", "type": "enum", "label": "状态"}
+      ]
+    },
+    {
+      "id": "Payment", "label": "回款", "table": "payments", "key": "id", "detail": true,
+      "attributes": [
+        {"name": "customer_id", "type": "string", "label": "客户"},
+        {"name": "amount", "type": "number", "label": "金额"},
+        {"name": "date", "type": "date", "label": "日期"},
+        {"name": "status", "type": "enum", "label": "状态"}
+      ]
     }
   ],
   "relations": [
@@ -60,6 +89,11 @@
     {"id": "hasInventory", "from": "Product", "to": "Inventory", "fk": "inventory.product_id", "cardinality": "1:1", "label": "库存"},
     {"id": "hasSales", "from": "Product", "to": "Sale", "fk": "sales.product_id", "cardinality": "1:N", "label": "销售"},
     {"id": "hasCustomer", "from": "Sale", "to": "Customer", "fk": "sales.customer_id", "cardinality": "N:1", "label": "售予客户"},
+    {"id": "purchaseFrom", "from": "Purchase", "to": "Supplier", "fk": "purchase.supplier_id", "cardinality": "N:1", "label": "向供应商采购"},
+    {"id": "purchases", "from": "Purchase", "to": "Product", "fk": "purchase.product_id", "cardinality": "N:1", "label": "采购产品"},
+    {"id": "produces", "from": "Production", "to": "Product", "fk": "production.product_id", "cardinality": "N:1", "label": "生产产品"},
+    {"id": "usesEquipment", "from": "Production", "to": "Equipment", "fk": "production.equipment_id", "cardinality": "N:1", "label": "使用设备"},
+    {"id": "paidBy", "from": "Payment", "to": "Customer", "fk": "payments.customer_id", "cardinality": "N:1", "label": "客户回款"},
     {"id": "producedBy", "from": "Product", "to": "Equipment", "fk": null, "cardinality": "N:1", "label": "生产", "abstract": true}
   ],
   "constraints": [

@@ -77,6 +77,38 @@ class Equipment:
     status: str
 
 
+@dataclass
+class Purchase:
+    """采购。对应 purchase.csv(id,supplier_id,product_id,qty,date,amount)。"""
+    id: str
+    supplier_id: str
+    product_id: str
+    qty: int
+    date: str
+    amount: float
+
+
+@dataclass
+class Production:
+    """生产工单。对应 production.csv(id,product_id,equipment_id,qty,date,status)。"""
+    id: str
+    product_id: str
+    equipment_id: str
+    qty: int
+    date: str
+    status: str
+
+
+@dataclass
+class Payment:
+    """回款。对应 payments.csv(id,customer_id,amount,date,status)。"""
+    id: str
+    customer_id: str
+    amount: float
+    date: str
+    status: str
+
+
 # CSV 文件名 -> 目标实体类
 _CSV_TO_ENTITY = {
     "products": Product,
@@ -85,6 +117,9 @@ _CSV_TO_ENTITY = {
     "sales": Sale,
     "customers": Customer,
     "equipment": Equipment,
+    "purchase": Purchase,
+    "production": Production,
+    "payments": Payment,
 }
 
 
