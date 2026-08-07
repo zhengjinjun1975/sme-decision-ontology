@@ -308,11 +308,13 @@ NL_ROUTES = {
 
 
 def _decide(module=None):
+    """用声明式规则引擎(跨行业可配置)产出决策建议。"""
+    import rules_engine as reng
+    enabled = enabled_modules(os.path.join(ROOT, "..", "config", "deployment.json"))
+    res = reng.run_rules(DATA, enabled=enabled)
     if module:
-        mod = importlib.import_module(f"decisions.{module}")
-        return {module: mod.decide(DATA)}
-    return {name: importlib.import_module(f"decisions.{name}").decide(DATA)
-            for name in enabled_modules(os.path.join(ROOT, "..", "config", "deployment.json"))}
+        return {module: res.get(module, [])}
+    return res
 
 
 @app.get("/decision/summary")

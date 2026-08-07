@@ -50,6 +50,10 @@ python -m uvicorn codes.api_server:app --port 8000
 
 **跨行业示例**：阀门(16产品/8采购/8生产/8回款/178节点) 与 食品(含原料/批次/质检特有表/43节点) 均自适应建模。
 
+**决策规则跨行业可配置**：`config/decisions.json` 声明式定义（哪些表/哪些通用公式/哪些阈值），换行业只改此配置零 Python。
+通用指标：`reorder补货 / shortage缺货 / slow_turnover呆滞 / aging账龄 / warranty保修 / forecast预测 / price_compare比价 / supplier_score供应商评分`。
+已验证：阀门 + 食品 两行业同一配置引擎自适应出决策。
+
 ## 核心组件
 
 ```

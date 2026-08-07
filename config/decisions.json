@@ -1,0 +1,35 @@
+{
+  "_comment": "声明式决策规则(跨行业可配置)。改此文件即可定义新行业的决策规则, 零Python。通用指标: reorder补货/shortage缺货/slow_turnover呆滞/aging账龄/warranty保修/forecast预测/price_compare比价/supplier_score供应商评分。阈值来自 thresholds.json。",
+  "inventory": {
+    "rules": [
+      {"id": "D1", "name": "补货", "metric": "reorder", "table": "inventory", "join_key": "product_id",
+       "action": "补货", "level": "建议", "reason": "stock={stock:g} < reorder_level={reorder_level:g} (日均出库×提前期+安全库存)"},
+      {"id": "D2", "name": "缺货", "metric": "shortage", "table": "inventory",
+       "action": "缺货预警", "level": "预警"},
+      {"id": "D3", "name": "呆滞", "metric": "slow_turnover", "table": "inventory",
+       "action": "呆滞处理", "level": "预警"}
+    ]
+  },
+  "procurement": {
+    "rules": [
+      {"id": "D4", "name": "比价", "metric": "price_compare", "table": "products",
+       "action": "比价提示", "level": "建议"},
+      {"id": "D5", "name": "供应商", "metric": "supplier_score", "table": "suppliers",
+       "action": "供应商绩效预警", "level": "预警"}
+    ]
+  },
+  "sales": {
+    "rules": [
+      {"id": "D6", "name": "预测", "metric": "forecast", "table": "sales",
+       "action": "销售下滑预警", "level": "预警"},
+      {"id": "D7", "name": "信用", "metric": "aging", "table": "customers",
+       "action": "催收", "level": "预警"}
+    ]
+  },
+  "equipment": {
+    "rules": [
+      {"id": "D8", "name": "维护", "metric": "warranty", "table": "equipment",
+       "action": "维护", "level": "预警"}
+    ]
+  }
+}
