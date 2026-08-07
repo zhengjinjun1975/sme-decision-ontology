@@ -349,23 +349,45 @@ def decision_summary():
         "urgent": urgent[:10], "warning": warn[:10],
         "final_recommendation": recs,
     }
-    # LLM 解释层("规则算LLM讲"): 用本地 Ollama 生成自然语言执行摘要
-    llm_text = None
-    try:
-        from core.model_llm import llm_generate
-        urls = ", ".join(u.get("entity", "") for u in urgent[:5]) if urgent else ("无告急项" )
-        warns = ", ".join(w.get("entity", "") for w in warn[:5]) if warn else "无预警项"
-        prompt = (f"你是企业运营决策助理。基于以下规则决策结果，写一段简明的经营执行摘要(200字内)：\n"
-                  f"共{len(all_sug)}条决策建议(告急{by_level.get('告急',0)}/预警{by_level.get('预警',0)}/建议{by_level.get('建议',0)})；\n"
-                  f"告急项：{urls}；预警项：{warns}。\n"
-                  f"用中文，指出最需优先处理的事项和理由，语气冷静务实。")
-        llm_text = llm_generate(prompt, temperature=0.3, max_tokens=300)
-        if llm_text == "[模型不可用]":
+    # LLM 解释层("规则算LLM讲"): 用本地 Ollama 生成自然语言执行摘要, 按数据hash缓存(同数据只生成一次, 不阻塞)
+    import hashlib
+    data_hash = hashlib.md5(json.dumps({k: len(v) for k, v in DATA.items()}, sort_keys=True).encode()).hexdigest()[:10]
+    cache = _load_summary_cache()
+    llm_text = cache.get("llm_summary") if cache.get("data_hash") == data_hash else None
+    if llm_text is None:
+        try:
+            from core.model_llm import llm_generate
+            urls = ", ".join(u.get("entity", "") for u in urgent[:5]) if urgent else "无告急项"
+            warns = ", ".join(w.get("entity", "") for w in warn[:5]) if warn else "无预警项"
+            prompt = (f"你是企业运营决策助理。基于以下规则决策结果，写一段简明的经营执行摘要(200字内)：\n"
+                      f"共{len(all_sug)}条决策建议(告急{by_level.get('告急',0)}/预警{by_level.get('预警',0)}/建议{by_level.get('建议',0)})；\n"
+                      f"告急项：{urls}；预警项：{warns}。\n"
+                      f"用中文，指出最需优先处理的事项和理由，语气冷静务实。")
+            llm_text = llm_generate(prompt, temperature=0.3, max_tokens=300)
+            if llm_text == "[模型不可用]":
+                llm_text = None
+            else:
+                _save_summary_cache({"data_hash": data_hash, "llm_summary": llm_text})  # 缓存
+        except Exception:
             llm_text = None
-    except Exception:
-        llm_text = None
     report["llm_summary"] = llm_text  # None 时前端回落规则建议
     return {"ok": True, "report": report}
+
+
+_SUMMARY_CACHE = os.path.join(ROOT, "..", "config", "summary_cache.json")
+
+
+def _load_summary_cache() -> dict:
+    try:
+        with open(_SUMMARY_CACHE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_summary_cache(cache: dict):
+    with open(_SUMMARY_CACHE, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=1)
 
 
 @app.get("/decisions/{module}")
