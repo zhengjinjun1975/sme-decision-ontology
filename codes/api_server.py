@@ -22,6 +22,16 @@ from core import domain_model as dm
 
 app = FastAPI(title="sme-decision-ontology API", version="0.11", description="本体驱动中小企业数据决策 API")
 
+
+@app.middleware("http")
+async def no_cache(request, call_next):
+    """强制浏览器不缓存前端/API(防陈旧文件): 每次重新拉取。"""
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 # 前端静态托管（前后端闭环）
 WEB = os.path.join(ROOT, "..", "web")
 if os.path.isdir(WEB):
