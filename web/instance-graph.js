@@ -70,7 +70,8 @@ async function loadGraphFull(){
     tooltip:{show:true},
     animationDuration:800,
     series:[{
-      type:'graph', layout:'none', roam:true,
+      type:'graph', layout:'force', roam:true,  // 力导向自动分离节点(避免手动坐标错误/重叠)
+      force:{repulsion:320, edgeLength:[60,140], gravity:0.1, friction:0.6},
       label:{show:true,position:'right',fontSize:9,color:'#1a2233',formatter:p=>p.name&&p.name.slice(0,10)},
       edgeSymbol:['none','arrow'], edgeSymbolSize:[0,6],
       lineStyle:{color:'#d6e4ff',width:1,curveness:0.1},
