@@ -167,7 +167,7 @@ h1 span{color:var(--blue)}
 </div>
 
 <script src="/static/lib/echarts.min.js"></script>
-<script src="/static/instance-graph.js?v=7"></script>
+<script src="/static/instance-graph.js?v=8"></script>
 <script>
 const MODULES=[["inventory","库存"],["procurement","采购"],["sales","销售/信用"],["equipment","设备"]];
 const DECISIONS=[["全部",""],["补货","补货"],["缺货","缺货"],["呆滞","呆滞"],["比价","比价"],["供应商","供应商"],["预测","预测"],["信用","信用"],["维护","维护"],["超额度","超额度"]];
@@ -259,8 +259,7 @@ async function loadOntology(){
   const r=await api('/ontology');
   if(!r.ok){document.getElementById('ontology-graph').innerHTML='<div class="empty">加载失败</div>';return;}
   const m=r.model;
-  document.getElementById('ontology-graph').innerHTML='<div class="empty">实例图加载中…</div>';
-  loadGraphFull();
+  document.getElementById('ontology-graph').innerHTML='<div class="empty">实例图待打开…</div>';
   // 类型体系(Is-A) + 属性语义角色 (Palantir 风格深化)
   const om=await api('/ontology/model');
   if(om.ok&&om.model&&om.model.type_hierarchy){
@@ -322,6 +321,7 @@ function showView(v,btn){
   if(btn)btn.classList.add('active');
   ['data','ontology','decision','model'].forEach(x=>document.getElementById('view-'+x).style.display=(x===v?'':'none'));
   if(v==='decision')loadSummary();
+  if(v==='ontology'){ setTimeout(()=>loadGraphFull(), 60); }  // 容器可见后再init ECharts(避免隐藏0尺寸→空白)
 }
 function selDec(kw,btn){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('active'));
