@@ -63,6 +63,43 @@ class ModelReq(BaseModel):
     active: str
 
 
+class DataDirReq(BaseModel):
+    dir: str
+
+
+class AskReq(BaseModel):
+    question: str
+
+
+# 全局数据(可切换目录重新加载)
+DATA_DIR = os.path.join(ROOT, "..", "data")
+
+
+def _reload_data():
+    global DATA
+    DATA = load_all(DATA_DIR)
+
+
+DATA = load_all(DATA_DIR)
+
+
+@app.post("/data/set-dir")
+def set_data_dir(req: DataDirReq):
+    """选择数据目录，重新加载数据（目录接入能力）。"""
+    global DATA_DIR
+    d = os.path.abspath(req.dir)
+    if not os.path.isdir(d):
+        return {"ok": False, "error": f"目录不存在: {d}"}
+    DATA_DIR = d
+    _reload_data()
+    return {"ok": True, "data_dir": DATA_DIR, "sources": {k: len(v) for k, v in DATA.items()}}
+
+
+@app.get("/data/dir")
+def get_data_dir():
+    return {"ok": True, "data_dir": DATA_DIR}
+
+
 @app.post("/model")
 def switch_model(req: ModelReq):
     p = os.path.join(ROOT, "..", "config", "model_config.json")
@@ -108,8 +145,34 @@ def _decide(module=None):
             for name in enabled_modules(os.path.join(ROOT, "..", "config", "deployment.json"))}
 
 
-class AskReq(BaseModel):
-    question: str
+@app.get("/decision/summary")
+def decision_summary():
+    """决策总结报告：汇总 + 最终建议定版（规则聚合，LLM 可选解读）。"""
+    dec = _decide()
+    all_sug = [s for v in dec.values() for s in v]
+    # 按严重度统计
+    by_level = {}
+    for s in all_sug:
+        by_level[s.get("level", "建议")] = by_level.get(s.get("level", "建议"), 0) + 1
+    # 告急/预警优先
+    urgent = [s for s in all_sug if s.get("level") == "告急"]
+    warn = [s for s in all_sug if s.get("level") == "预警"]
+    # 最终建议定版
+    recs = []
+    if urgent:
+        recs.append(f"立即处理 {len(urgent)} 项告急：{', '.join(u.get('entity','') for u in urgent[:5])}")
+    if warn:
+        recs.append(f"关注 {len(warn)} 项预警（缺货/呆滞/信用/供应商绩效）")
+    if not urgent and not warn:
+        recs.append("各项指标正常，无需紧急干预")
+    report = {
+        "total": len(all_sug),
+        "by_level": by_level,
+        "urgent": urgent[:10],
+        "warning": warn[:10],
+        "final_recommendation": recs,
+    }
+    return {"ok": True, "report": report}
 
 
 @app.get("/decisions/{module}")
