@@ -59,6 +59,7 @@
     {"id": "suppliedBy", "from": "Product", "to": "Supplier", "fk": "products.supplier", "cardinality": "N:1", "label": "供应"},
     {"id": "hasInventory", "from": "Product", "to": "Inventory", "fk": "inventory.product_id", "cardinality": "1:1", "label": "库存"},
     {"id": "hasSales", "from": "Product", "to": "Sale", "fk": "sales.product_id", "cardinality": "1:N", "label": "销售"},
+    {"id": "hasCustomer", "from": "Sale", "to": "Customer", "fk": "sales.customer_id", "cardinality": "N:1", "label": "售予客户"},
     {"id": "producedBy", "from": "Product", "to": "Equipment", "fk": null, "cardinality": "N:1", "label": "生产", "abstract": true}
   ],
   "constraints": [

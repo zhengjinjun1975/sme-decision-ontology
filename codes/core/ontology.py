@@ -72,6 +72,23 @@ def build_graph(data: dict, schema: dict) -> dict:
             node_id = f"{eid}:{kid}@{i}" if detail else f"{eid}:{kid}"
             graph["nodes"][node_id] = {"entity": eid, "id": kid, "idx": i, "data": row}
             node_ids.setdefault(eid, []).append(node_id)
+    # 类别类层级(本体层次深入): 实体含 category 属性 → 建类别类节点 + isA 边
+    for eid, ent in entities.items():
+        table = ent["table"]
+        if table not in data or "category" not in data[table][0]:
+            continue
+        key = ent["key"]
+        detail = ent.get("detail", False)
+        cat_nodes = {}
+        for i, row in enumerate(data[table]):
+            cat = row.get("category")
+            if not cat:
+                continue
+            cat_id = f"Category:{eid}:{cat}"
+            if cat_id not in graph["nodes"]:
+                graph["nodes"][cat_id] = {"entity": "Category", "id": cat, "data": {"name": cat, "of": eid}}
+            src = f"{eid}:{row.get(key)}@{i}" if detail else f"{eid}:{row.get(key)}"
+            graph["edges"].append({"from": src, "to": cat_id, "rel": "isA", "label": "属于类别"})
     # 边: FK join 关系（支持 FK 在 from 侧或 to 侧）
     for r in relations:
         if r.get("abstract") or not r.get("fk"):
@@ -91,8 +108,11 @@ def build_graph(data: dict, schema: dict) -> dict:
             if not val:
                 continue
             if ftable == from_e.get("table"):
-                # FK 在 from 侧: Product.supplier → Supplier.id
-                src = f"{r['from']}:{row.get(from_e['key'])}"
+                # FK 在 from 侧: Product.supplier → Supplier.id (或明细实体 Sale.customer_id → Customer)
+                if from_e.get("detail"):
+                    src = f"{r['from']}:{row.get(from_e['key'])}@{i}"  # 明细实体用行号节点
+                else:
+                    src = f"{r['from']}:{row.get(from_e['key'])}"
                 dsts = fk_val_to_nodes.get(str(val), [])
                 for dst in dsts:
                     if src in graph["nodes"]:
