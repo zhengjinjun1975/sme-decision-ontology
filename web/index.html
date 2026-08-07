@@ -147,7 +147,7 @@ h1 span{color:var(--blue)}
 </div>
 </div>
 
-<script src="/static/instance-graph.js?v=2"></script>
+<script src="/static/instance-graph.js?v=3"></script>
 <script>
 const MODULES=[["inventory","库存"],["procurement","采购"],["sales","销售/信用"],["equipment","设备"]];
 const DECISIONS=[["全部",""],["补货","补货"],["缺货","缺货"],["呆滞","呆滞"],["比价","比价"],["供应商","供应商"],["预测","预测"],["信用","信用"],["维护","维护"],["超额度","超额度"]];
@@ -214,56 +214,6 @@ async function loadDecision(){
   document.getElementById('thresholds').innerHTML=Object.entries(t).flatMap(([k,v])=>Object.entries(v))
     .map(([k,v])=>`<div class="thr"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
 }
-// 力导向布局(弹簧+斥力+重力) 渲染真实实例 SVG 大图
-function forceLayout(nodes, edges, W, H, iters){
-  const pos={}; nodes.forEach((n,i)=>{pos[n.id]={x:W/2+(Math.random()-.5)*W*.6, y:H/2+(Math.random()-.5)*H*.6};});
-  const adj={}; edges.forEach(e=>{(adj[e.from]=adj[e.from]||[]).push(e.to);(adj[e.to]=adj[e.to]||[]).push(e.from);});
-  for(let k=0;k<iters;k++){
-    const f={}; nodes.forEach(n=>{f[n.id]={x:0,y:0};});
-    // 斥力
-    for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
-      const a=nodes[i],b=nodes[j],pa=pos[a.id],pb=pos[b.id];
-      let dx=pa.x-pb.x,dy=pa.y-pb.y,d2=dx*dx+dy*dy+1;
-      const d=Math.sqrt(d2),fr=2400/d2;
-      dx/=d;dy/=d;f[a.id].x+=dx*fr;f[a.id].y+=dy*fr;f[b.id].x-=dx*fr;f[b.id].y-=dy*fr;
-    }
-    // 弹簧(边吸引)
-    edges.forEach(e=>{const pa=pos[e.from],pb=pos[e.to];let dx=pb.x-pa.x,dy=pb.y-pa.y;const d=Math.sqrt(dx*dx+dy*dy+1),target=40;const s=(d-target)*.08;dx/=d;dy/=d;f[e.from].x+=dx*s;f[e.from].y+=dy*s;f[e.to].x-=dx*s;f[e.to].y-=dy*s;});
-    // 重心
-    nodes.forEach(n=>{f[n.id].x+=(W/2-pos[n.id].x)*.01;f[n.id].y+=(H/2-pos[n.id].y)*.01;});
-    // 应用
-    nodes.forEach(n=>{pos[n.id].x+=f[n.id].x;pos[n.id].y+=f[n.id].y;
-      pos[n.id].x=Math.max(10,Math.min(W-10,pos[n.id].x));pos[n.id].y=Math.max(10,Math.min(H-10,pos[n.id].y));});
-  }
-  return pos;
-}
-async function loadGraphFull(){
-  const r=await api('/graph/full');
-  if(!r.ok){return;}
-  const COL={Product:'#2f6bff',Supplier:'#f39c12',Inventory:'#27ae60',Sale:'#8e44ad',Customer:'#e74c3c',Equipment:'#16a085'};
-  const W=900,H=520,pos=forceLayout(r.nodes,r.edges,W,H,120);
-  const idx={}; r.nodes.forEach((n,i)=>idx[n.id]=i);
-  let svg=`<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" style="background:var(--card);border-radius:12px;border:1px solid var(--line)">`;
-  // 边
-  r.edges.forEach(e=>{
-    const a=pos[e.from],b=pos[e.to]; if(!a||!b)return;
-    svg+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#d6e4ff" stroke-width="1"/>`;
-  });
-  // 节点
-  r.nodes.forEach(n=>{
-    const p=pos[n.id],c=COL[n.entity]||'#6b7a90';
-    const txt=esc(n.label||n.id_val);
-    const tip=esc(n.entity+' '+(n.id_val||'')+' · '+JSON.stringify(n.data||{}));
-    svg+=`<g class="gnode"><circle cx="${p.x}" cy="${p.y}" r="9" fill="${c}" opacity=".85"/>
-    <title>${tip}</title></g><text x="${p.x}" y="${p.y-13}" font-size="8" fill="#6b7a90" text-anchor="middle">${txt.slice(0,12)}</text>`;
-  });
-  svg+=`</svg>`;
-  // 图例
-  const legend=Object.entries(COL).map(([k,c])=>`<span class="rel-chip" style="background:#fff;color:${c};border-color:${c}">● ${esc(k)}</span>`).join('');
-  document.getElementById('ontology-graph').innerHTML=svg
-    +`<div style="margin-top:10px">${legend} <span class="count">· ${r.counts.nodes} 实例节点 / ${r.counts.edges} 关系 · 悬停节点看详情</span></div>`;
-}
-
 async function loadOntology(){
   const r=await api('/ontology');
   if(!r.ok){document.getElementById('ontology-graph').innerHTML='<div class="empty">加载失败</div>';return;}
