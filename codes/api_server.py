@@ -113,7 +113,47 @@ def switch_model(req: ModelReq):
 
 @app.get("/ontology")
 def ontology():
-    return {"ok": True, "model": DOMAIN_MODEL}
+    """真实本体 schema + 图统计 + 约束校验（生产级本体建模视图）。"""
+    try:
+        from core import ontology as ont
+        schema = ont.load_schema(os.path.join(ROOT, "..", "config", "ontology.json"))
+        graph = ont.build_graph(DATA, schema)
+        issues = ont.validate(DATA, schema)
+        return {"ok": True,
+                "model": {"entities": schema["entities"], "relations": schema["relations"], "constraints": schema.get("constraints", [])},
+                "graph": {"nodes": len(graph["nodes"]), "edges": len(graph["edges"])},
+                "validation": {"issues": issues}}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/modeling/suggest")
+def modeling_suggest():
+    """AI 原生建模：从当前数据自动建议本体 schema（规则兜底确定性 + LLM 可选）。"""
+    from core import modeling
+    schema = modeling.suggest_schema(DATA)
+    # LLM 增强(本地优先, 失败回落)
+    try:
+        schema = modeling.llm_enhance(schema, use_llm=True)
+    except Exception:
+        pass
+    return {"ok": True, "suggested": schema}
+
+
+@app.get("/graph/{entity}/{eid}")
+def graph_traverse(entity: str, eid: str):
+    """本体图遍历（跨域）：从某实体实例出发的相关实体。"""
+    from core import ontology as ont
+    schema = ont.load_schema(os.path.join(ROOT, "..", "config", "ontology.json"))
+    graph = ont.build_graph(DATA, schema)
+    rel = ont.traverse(graph, entity, eid)
+    # 解析关联详情
+    out = []
+    for r in rel:
+        target = r.get("to") or r.get("from")
+        node = graph["nodes"].get(target, {})
+        out.append({"rel": r.get("rel"), "label": r.get("label"), "entity": node.get("entity"), "id": node.get("id"), "data": node.get("data", {})})
+    return {"ok": True, "start": f"{entity}:{eid}", "related": out}
 
 
 @app.get("/data-sources")

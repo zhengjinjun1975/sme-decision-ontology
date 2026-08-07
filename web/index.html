@@ -193,13 +193,20 @@ async function loadDecision(){
     .map(([k,v])=>`<div class="thr"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
 }
 async function loadOntology(){
-  const r=await api('/ontology'); const m=r.model;
-  document.getElementById('ontology-graph').innerHTML=m.entities.map(e=>
-    `<div class="onto-node"><div class="n-name">${esc(e.label)}</div><div class="n-cn">${esc(e.name)}</div></div>
-     ${e.name==='Equipment'?'':`<div class="onto-rel">↔</div>`}`).join('');
+  const r=await api('/ontology');
+  if(!r.ok){document.getElementById('ontology-graph').innerHTML='<div class="empty">加载失败</div>';return;}
+  const m=r.model;
+  document.getElementById('ontology-graph').innerHTML=
+    `<div class="empty" style="text-align:left;padding:8px 0 12px">本体图: ${r.graph.nodes} 节点 · ${r.graph.edges} 关系边 · 约束校验 ${r.validation.issues.filter(i=>i.severity==='error').length} 错误</div>`+
+    m.entities.map(e=>
+    `<div class="onto-node"><div class="n-name">${esc(e.label)}</div><div class="n-cn">${esc(e.id)}</div></div>
+     ${m.entities.indexOf(e)===m.entities.length-1?'':'<div class="onto-rel">↔</div>'}`).join('');
   document.getElementById('ontology-entities').innerHTML=m.entities.map(e=>
-    `<div class="entity-card"><div><div class="label">${esc(e.label)} <span style="font-weight:400;color:var(--dim)">${esc(e.name)}</span></div>
-    <div class="fields">${esc(e.fields.join(' · '))}</div></div></div>`).join('');
+    `<div class="entity-card"><div><div class="label">${esc(e.label)} <span style="font-weight:400;color:var(--dim)">${esc(e.id)} · ${esc(e.table)}</span></div>
+    <div class="fields">${esc((e.attributes||[]).map(a=>a.label+'('+a.type+')').join(' · '))}</div></div></div>`).join('');
+  const cons=(m.constraints||[]).map(c=>`<span class="rel-chip">${esc(c.type)}: ${esc(c.on)}</span>`).join('');
+  const rels=(m.relations||[]).map(rl=>`<span class="rel-chip">${esc(rl.from)} →${esc(rl.id)}→ ${esc(rl.to)}</span>`).join('');
+  document.getElementById('ontology-relations').innerHTML=rels+cons;
 }
 async function loadModel(){
   const r=await api('/model');

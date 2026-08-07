@@ -1,0 +1,70 @@
+{
+  "_comment": "企业唯一本体定义(跨表跨域)。中庸之道: 不过繁不引OWL, 不过简不做平铺。换行业只改此文件+数据, 代码不动。",
+  "version": "1.0",
+  "entities": [
+    {
+      "id": "Product", "label": "产品", "table": "products", "key": "id",
+      "attributes": [
+        {"name": "name", "type": "string", "required": true, "label": "名称"},
+        {"name": "category", "type": "string", "label": "类别"},
+        {"name": "材质", "type": "string", "label": "材质"},
+        {"name": "规格", "type": "string", "label": "规格"},
+        {"name": "cost", "type": "number", "label": "成本"},
+        {"name": "price", "type": "number", "label": "售价"}
+      ]
+    },
+    {
+      "id": "Supplier", "label": "供应商", "table": "suppliers", "key": "id",
+      "attributes": [
+        {"name": "name", "type": "string", "required": true, "label": "名称"},
+        {"name": "on_time_pct", "type": "number", "label": "准时率"},
+        {"name": "quality_pct", "type": "number", "label": "质量合格率"}
+      ]
+    },
+    {
+      "id": "Inventory", "label": "库存", "table": "inventory", "key": "product_id",
+      "attributes": [
+        {"name": "stock", "type": "number", "label": "库存"},
+        {"name": "safety_stock", "type": "number", "label": "安全库存"},
+        {"name": "lead_time_days", "type": "number", "label": "提前期(天)"}
+      ]
+    },
+    {
+      "id": "Sale", "label": "销售", "table": "sales", "key": "product_id", "detail": true,
+      "attributes": [
+        {"name": "date", "type": "date", "label": "日期"},
+        {"name": "qty", "type": "number", "label": "数量"}
+      ]
+    },
+    {
+      "id": "Customer", "label": "客户", "table": "customers", "key": "id",
+      "attributes": [
+        {"name": "name", "type": "string", "required": true, "label": "名称"},
+        {"name": "order_amount", "type": "number", "label": "订单额"},
+        {"name": "aging_days", "type": "number", "label": "账龄(天)"},
+        {"name": "credit_limit", "type": "number", "label": "信用额度"}
+      ]
+    },
+    {
+      "id": "Equipment", "label": "设备", "table": "equipment", "key": "id",
+      "attributes": [
+        {"name": "name", "type": "string", "label": "名称"},
+        {"name": "install_date", "type": "date", "label": "安装日期"},
+        {"name": "warranty_months", "type": "number", "label": "保修(月)"},
+        {"name": "status", "type": "enum", "label": "状态"}
+      ]
+    }
+  ],
+  "relations": [
+    {"id": "suppliedBy", "from": "Product", "to": "Supplier", "fk": "products.supplier", "cardinality": "N:1", "label": "供应"},
+    {"id": "hasInventory", "from": "Product", "to": "Inventory", "fk": "inventory.product_id", "cardinality": "1:1", "label": "库存"},
+    {"id": "hasSales", "from": "Product", "to": "Sale", "fk": "sales.product_id", "cardinality": "1:N", "label": "销售"},
+    {"id": "producedBy", "from": "Product", "to": "Equipment", "fk": null, "cardinality": "N:1", "label": "生产", "abstract": true}
+  ],
+  "constraints": [
+    {"type": "unique", "on": "Product.id", "msg": "产品编码唯一"},
+    {"type": "required", "on": "Product.name", "msg": "产品必须有名称"},
+    {"type": "positive", "on": "Inventory.stock", "msg": "库存不能为负"},
+    {"type": "positive", "on": "Product.price", "msg": "售价不能为负"}
+  ]
+}
