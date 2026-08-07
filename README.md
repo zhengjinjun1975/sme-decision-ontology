@@ -45,8 +45,28 @@ python -m pytest tests/                   # Golden test(决策规则单测)
 ## AI 原生
 
 - **规则算，LLM 讲**：计算层零 token 确定性，LLM 只做解释
-- **MCP server**：暴露决策给任意 MCP-native agent（可信决策 API）
+- **MCP server**：暴露决策给任意 MCP-native agent（`decide`/`actions`/`thresholds`，可信决策 API）
+- **自然语言问决策**：`POST /ask` 结构化路由 + 歧义回显校验
 - **模型层**：本地 Ollama 优先（`config/model_config.json` 的 active），远端 DeepSeek 降级
+
+## 决策到行动闭环
+
+`action.py` 把决策建议变成可执行行动项：
+- 库存补货 → **采购单草稿**（产品/数量/供应商）
+- 缺货/呆滞 → **库存预警**
+- 客户逾期 → **催收清单** / 超额度 → **信用预警**
+- 设备 → **维护工单**
+- 可导出 CSV（`python action.py`）
+
+## API
+
+```bash
+python -m uvicorn codes.api_server:app   # 启动 API
+GET  /decisions/inventory   # 跑某决策模块
+GET  /decisions            # 全部决策
+GET  /actions              # 行动清单
+POST /ask {"question":"库存补货"}   # 自然语言问决策(回显校验)
+```
 
 ## 技术依据
 

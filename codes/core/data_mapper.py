@@ -25,6 +25,42 @@ def load_sqlite(path, table) -> list[dict]:
         return [dict(r) for r in cur.fetchall()]
 
 
+def load_mysql(path, table, host="localhost", port=3306, user="root", password="") -> list[dict]:
+    """从 MySQL 读表为 list[dict]。需 pymysql（可选依赖，未装给清晰报错）。"""
+    if not table or not table.replace("_", "").isalnum():
+        raise ValueError(f"非法表名: {table!r}")
+    try:
+        import pymysql
+    except ImportError:
+        raise ImportError("读 MySQL 需 pymysql：pip install pymysql")
+    conn = pymysql.connect(host=host, port=port, user=user, password=password, database=path,
+                           cursorclass=pymysql.cursors.DictCursor)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f'SELECT * FROM `{table}`')
+            return list(cur.fetchall())
+    finally:
+        conn.close()
+
+
+def load_pg(path, table, host="localhost", port=5432, user="postgres", password="") -> list[dict]:
+    """从 PostgreSQL 读表为 list[dict]。需 psycopg2（可选依赖）。"""
+    if not table or not table.replace("_", "").isalnum():
+        raise ValueError(f"非法表名: {table!r}")
+    try:
+        import psycopg2
+        import psycopg2.extras
+    except ImportError:
+        raise ImportError("读 PostgreSQL 需 psycopg2：pip install psycopg2")
+    conn = psycopg2.connect(host=host, port=port, user=user, password=password, dbname=path)
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(f'SELECT * FROM "{table}"')
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
 def load_excel(path) -> list[dict]:
     """读取 Excel(.xlsx) 第一个工作表，返回字典列表。
 
