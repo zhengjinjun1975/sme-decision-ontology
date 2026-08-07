@@ -1,0 +1,21 @@
+{
+ "inventory": {
+  "safety_stock_days": 14,
+  "reorder_lead_time_days": 7,
+  "slow_turnover": 1.0
+ },
+ "sales": {
+  "credit_aging_days": 60,
+  "forecast_window": 30
+ },
+ "procurement": {
+  "score_weights": {
+   "price": 0.4,
+   "quality": 0.3,
+   "delivery": 0.3
+  }
+ },
+ "equipment": {
+  "warranty_warn_days": 30
+ }
+}

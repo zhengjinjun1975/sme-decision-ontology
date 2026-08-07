@@ -1,0 +1,9 @@
+{
+ "enabled": [
+  "inventory",
+  "procurement",
+  "sales",
+  "equipment"
+ ],
+ "_comment": "选择性部署: 只填要启用的模块组。inventory=补货/缺货/呆滞, procurement=比价/供应商, sales=预测/信用, equipment=维护"
+}

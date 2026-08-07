@@ -1,0 +1,4 @@
+id,name,on_time_pct,quality_pct,price_rank
+S01,沪阀,95,98,1
+S02,浙阀,88,95,2
+S03,宁阀,80,90,3
