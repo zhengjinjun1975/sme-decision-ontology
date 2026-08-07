@@ -37,11 +37,18 @@ python -m uvicorn codes.api_server:app --port 8000
 🟠 [预警] P02 → 缺货预警 | D2缺货: stock=20 < safety_stock=25
 ```
 
-## 换你自己的数据（3 步）
+## 换你自己的数据（3 步，跨行业）
 
-1. 把企业台账放 `data/`（products/inventory/sales/suppliers/customers/equipment.csv）
-2. 调阈值 `config/thresholds.json`（安全库存/账龄/周转率）
-3. 跑 `python codes/run.py decision` 或 `python codes/e2e_test.py`
+**跨行业泛化**：本体建模全动态（无硬编码实体/域），换行业只换数据 + 可选 schema，代码不动。已验证 阀门制造 + 食品 两行业。
+
+```bash
+1. 数据放 data/ 或上传/连库(CSV/Excel/SQLite/MySQL/PG)
+2. 本体自动建模: 动态发现表→实体, 外键→关系, 表名→业务域(采购/生产/库存/销售/财务)
+   数据含 schema 未覆盖的表 → AI 建模自动扩展(原料/批次/质检等特有实体)
+3. 跑决策 / 看大图(企业→业务域→实体类→实例)
+```
+
+**跨行业示例**：阀门(16产品/8采购/8生产/8回款/178节点) 与 食品(含原料/批次/质检特有表/43节点) 均自适应建模。
 
 ## 核心组件
 

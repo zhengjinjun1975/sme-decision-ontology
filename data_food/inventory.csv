@@ -1,0 +1,7 @@
+product_id,stock,safety_stock,lead_time_days
+F01,200,150,3
+F02,300,200,2
+F03,150,180,3
+F04,500,300,2
+F05,120,150,4
+F06,90,100,5

@@ -27,10 +27,13 @@ def _guess_type(vals: list) -> str:
 
 
 def suggest_schema(data: dict, table_prefix: str = "") -> dict:
-    """规则推断本体 schema：实体/属性/关系/约束（确定性，零 token 兜底）。"""
+    """规则推断本体 schema：实体/属性/关系/约束（确定性，零 token 兜底）。
+    两遍：先建全部实体，再推断跨表关系(避免目标实体未定义)。
+    """
     entities = []
     relations = []
     constraints = []
+    # 第一遍: 建实体 + 约束
     for table, rows in data.items():
         if not rows:
             continue
@@ -43,23 +46,28 @@ def suggest_schema(data: dict, table_prefix: str = "") -> dict:
                 continue
             vals = [r.get(col) for r in rows]
             attrs.append({"name": col, "type": _guess_type(vals), "label": col})
-        # 主键推断: id 列或 *xx_id 列
-        key = "id" if "id" in cols else (cols[0] if "id" in cols else next((c for c in cols if c.endswith("_id")), cols[0]))
-        entities.append({"id": eid, "label": eid, "table": table, "key": key,
-                         "attributes": attrs, "detail": key not in ("id",) and any(r.get(key) and str(r[key]).startswith("P") for r in rows[:5]) if rows else False})
-        # 外键关系推断（单复数词干匹配: products↔product）
-        for col in cols:
-            if col.endswith("_id") or col.endswith("_code"):
-                raw = col.replace("_id", "").replace("_code", "")
-                target = raw[0].upper() + raw[1:]
-                stem = raw.rstrip("s")  # 去尾 s 匹配复数表名
-                # 匹配已有实体(表名/词干)
-                matched = next((e["id"] for e in entities if e["id"].lower() == target.lower() or e["id"].lower() == stem.lower() or e["table"].lower().rstrip("s") == stem.lower()), None)
-                if matched:
-                    relations.append({"id": f"{matched.lower()}_{col}", "from": matched, "to": eid,
-                                      "fk": f"{table}.{col}", "cardinality": "N:1", "label": "关联"})
+        key = "id" if "id" in cols else next((c for c in cols if c.endswith("_id")), cols[0])
+        entities.append({"id": eid, "label": eid, "table": table, "key": key, "attributes": attrs})
         if "id" in cols:
             constraints.append({"type": "unique", "on": f"{eid}.id", "msg": f"{eid} 编号唯一"})
+    # 第二遍: 跨表 FK 关系推断(所有实体已建, 单复数词干匹配: products↔product)
+    def _match_target(raw):
+        stem = raw.rstrip("s")
+        return next((e["id"] for e in entities
+                     if e["id"].lower() == raw.lower()
+                     or e["id"].lower() == stem.lower()
+                     or e["table"].lower().rstrip("s") == stem.lower()), None)
+    for table, rows in data.items():
+        if not rows:
+            continue
+        eid = table[0].upper() + table[1:]
+        for col in rows[0].keys():
+            if col.endswith("_id") or col.endswith("_code"):
+                raw = col.replace("_id", "").replace("_code", "")
+                matched = _match_target(raw)
+                if matched and matched != eid:
+                    relations.append({"id": f"{matched.lower()}_{col}", "from": matched, "to": eid,
+                                      "fk": f"{table}.{col}", "cardinality": "N:1", "label": "关联"})
     return {"version": "1.0", "entities": entities, "relations": relations, "constraints": constraints}
 
 

@@ -1,167 +1,81 @@
 # -*- coding: utf-8 -*-
-"""统一领域模型：定义 SME 决策本体相关的核心实体。
+"""统一领域模型（动态化，跨行业泛化）。
 
-实体字段与 data/ 下各 CSV 表一一对应，用 dataclass 表达结构、
-用 dict 承载数据，避免额外抽象。
+自动发现数据目录下所有 CSV → 通用实体（表名→实体, 列→属性+类型推断）。
+不硬编码任何实体类型：换行业（阀门/食品/机械/服务）只需替换数据目录 + schema。
 纯标准库 csv，零依赖。
 """
 
 import csv
-from dataclasses import dataclass, asdict
 from pathlib import Path
 
-
-@dataclass
-class Product:
-    """产品。对应 products.csv(id,name,category,cost,price,supplier)。"""
-    id: str
-    name: str
-    category: str
-    cost: float
-    price: float
-    supplier: str
+# 数值/日期/枚举列名提示(类型推断辅助)
+_NUMERIC_HINTS = ("qty", "amount", "price", "cost", "stock", "pct", "age", "limit", "rank", "months", "days", "num")
+_DATE_HINTS = ("date", "time", "day", "install", "create")
+_ENUM_HINTS = ("status", "state", "type", "category", "kind", "flag", "grade")
 
 
-@dataclass
-class Supplier:
-    """供应商。对应 suppliers.csv(id,name,on_time_pct,quality_pct,price_rank)。"""
-    id: str
-    name: str
-    on_time_pct: float
-    quality_pct: float
-    price_rank: int
+def _infer_type(col: str, vals: list) -> str:
+    """从列名 + 样本猜属性类型(number/date/enum/string)。"""
+    low = col.lower()
+    sample = [v for v in vals if v is not None and str(v).strip() != ""][:8]
+    if not sample:
+        return "string"
+    # 数值: 列名提示或全数值
+    if any(h in low for h in _NUMERIC_HINTS) or all(str(v).replace(".", "", 1).replace("-", "", 1).isdigit() for v in sample):
+        return "number"
+    if any(h in low for h in _DATE_HINTS) or all("-" in str(v) and str(v)[:4].isdigit() for v in sample):
+        return "date"
+    if any(h in low for h in _ENUM_HINTS) or (len(set(sample)) <= 8 and len(sample) >= 2):
+        return "enum"
+    return "string"
 
 
-@dataclass
-class Inventory:
-    """库存。对应 inventory.csv(product_id,stock,safety_stock,lead_time_days)。"""
-    product_id: str
-    stock: int
-    safety_stock: int
-    lead_time_days: int
-
-
-@dataclass
-class Sale:
-    """销售。对应 sales.csv(product_id,date,qty)。"""
-    product_id: str
-    date: str
-    qty: int
-
-
-@dataclass
-class Customer:
-    """客户。对应 customers.csv(id,name,order_amount,aging_days,credit_limit)。"""
-    id: str
-    name: str
-    order_amount: float
-    aging_days: int
-    credit_limit: float
-
-
-@dataclass
-class Order:
-    """订单（派生数据，无固定 CSV，用于决策计算）。"""
-    product_id: str
-    qty: int
-    amount: float
-
-
-@dataclass
-class Equipment:
-    """设备。对应 equipment.csv(id,name,install_date,warranty_months,status)。"""
-    id: str
-    name: str
-    install_date: str
-    warranty_months: int
-    status: str
-
-
-@dataclass
-class Purchase:
-    """采购。对应 purchase.csv(id,supplier_id,product_id,qty,date,amount)。"""
-    id: str
-    supplier_id: str
-    product_id: str
-    qty: int
-    date: str
-    amount: float
-
-
-@dataclass
-class Production:
-    """生产工单。对应 production.csv(id,product_id,equipment_id,qty,date,status)。"""
-    id: str
-    product_id: str
-    equipment_id: str
-    qty: int
-    date: str
-    status: str
-
-
-@dataclass
-class Payment:
-    """回款。对应 payments.csv(id,customer_id,amount,date,status)。"""
-    id: str
-    customer_id: str
-    amount: float
-    date: str
-    status: str
-
-
-# CSV 文件名 -> 目标实体类
-_CSV_TO_ENTITY = {
-    "products": Product,
-    "suppliers": Supplier,
-    "inventory": Inventory,
-    "sales": Sale,
-    "customers": Customer,
-    "equipment": Equipment,
-    "purchase": Purchase,
-    "production": Production,
-    "payments": Payment,
-}
-
-
-def _load_csv(data_dir: Path, name: str, entity) -> list[dict]:
-    """读取单个 CSV，转成对应实体类的 dict 列表。"""
-    path = data_dir / f"{name}.csv"
-    if not path.exists():
-        return []
+def _load_csv_generic(path: Path) -> list[dict]:
+    """读取单个 CSV → dict 列表，数值列转 float/int。"""
     with open(path, "r", encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
     out = []
     for row in rows:
-        # 保留原始字符串字段，数值字段按列语义转换
-        data = dict(row)
-        fields = entity.__dataclass_fields__
-        for field in fields:
-            typ = fields[field].type
-            val = data.get(field)
+        d = dict(row)
+        for col, val in d.items():
             if val is None or val == "":
                 continue
-            if typ in (int, float):
-                data[field] = typ(val)
-        out.append(data)
+            if _infer_type(col, [val]) == "number":
+                try:
+                    d[col] = int(float(val)) if float(val).is_integer() else float(val)
+                except (ValueError, TypeError):
+                    pass
+        out.append(d)
     return out
 
 
 def load_all(data_dir) -> dict[str, list[dict]]:
-    """读取 data/ 下全部 CSV，返回 {实体名: dict 列表} 映射。"""
+    """自动发现 data_dir 下所有 CSV → {表名: dict 列表}（跨行业通用）。
+
+    任何企业数据目录（含任意表）都可加载，实体类型从表名+列自动推断。
+    """
     data_dir = Path(data_dir)
-    return {
-        name: _load_csv(data_dir, name, entity)
-        for name, entity in _CSV_TO_ENTITY.items()
-    }
+    if not data_dir.is_dir():
+        return {}
+    result = {}
+    for path in sorted(data_dir.glob("*.csv")):
+        if path.name.startswith("."):
+            continue
+        name = path.stem  # 表名 = 文件名(去 .csv)
+        try:
+            result[name] = _load_csv_generic(path)
+        except Exception:
+            result[name] = []
+    return result
 
 
 def entity_to_dict(entity) -> dict:
-    """dataclass 实体转 dict（辅助，避免处处手写）。"""
-    return asdict(entity)
+    """兼容旧接口：dict 实体直接返回。"""
+    return dict(entity)
 
 
 if __name__ == "__main__":
-    # 自检：可直接运行 python domain_model.py data/
     import sys
     d = load_all(sys.argv[1] if len(sys.argv) > 1 else "../data")
     for k, v in d.items():

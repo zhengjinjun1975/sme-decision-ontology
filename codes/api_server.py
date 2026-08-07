@@ -44,25 +44,6 @@ def index():
 
 
 # 领域模型定义（本体）：实体 + 关系（前端展示本体建模）
-DOMAIN_MODEL = {
-    "entities": [
-        {"name": "Product", "label": "产品", "fields": ["id", "name", "category", "材质", "规格", "cost", "price"]},
-        {"name": "Supplier", "label": "供应商", "fields": ["id", "name", "on_time_pct", "quality_pct"]},
-        {"name": "Inventory", "label": "库存", "fields": ["product_id", "stock", "safety_stock", "lead_time_days"]},
-        {"name": "Sale", "label": "销售", "fields": ["product_id", "date", "qty"]},
-        {"name": "Customer", "label": "客户", "fields": ["id", "name", "order_amount", "aging_days", "credit_limit"]},
-        {"name": "Equipment", "label": "设备", "fields": ["id", "name", "install_date", "warranty_months", "status"]},
-    ],
-    "relations": [
-        {"from": "Product", "rel": "suppliedBy", "to": "Supplier", "label": "供应"},
-        {"from": "Product", "rel": "hasInventory", "to": "Inventory", "label": "库存"},
-        {"from": "Product", "rel": "hasSales", "to": "Sale", "label": "销售"},
-        {"from": "Product", "rel": "producedBy", "to": "Equipment", "label": "生产"},
-        {"from": "Customer", "rel": "places", "to": "Order", "label": "下单"},
-    ],
-}
-
-
 @app.get("/model")
 def get_model():
     cfg = json.load(open(os.path.join(ROOT, "..", "config", "model_config.json"), encoding="utf-8"))
@@ -88,6 +69,45 @@ DATA_DIR = os.path.join(ROOT, "..", "data")
 def _reload_data():
     global DATA
     DATA = load_all(DATA_DIR)
+
+
+def _infer_domain(table: str) -> str:
+    """按表名猜业务域(跨行业自适应, 通用企业职能)。"""
+    t = table.lower()
+    if any(k in t for k in ("purchase", "supplier", "buy", "order", "procure", "raw")):
+        return "采购域"
+    if any(k in t for k in ("product", "batch", "produc", "work", "equip", "machin", "qc", "quality", "assembly")):
+        return "生产域"
+    if any(k in t for k in ("inventory", "stock", "warehouse", "store")):
+        return "库存域"
+    if any(k in t for k in ("sale", "customer", "order", "client", "deliver")):
+        return "销售域"
+    if any(k in t for k in ("payment", "finance", "invoice", "bill", "receiv")):
+        return "财务域"
+    return "其他域"
+
+
+def _effective_schema():
+    """当前数据的自适应 schema：config/ontology.json + 数据中未覆盖的表自动扩展(AI建模)。"""
+    from core import ontology as ont
+    schema = ont.load_schema(os.path.join(ROOT, "..", "config", "ontology.json"))
+    covered = {e["table"] for e in schema["entities"]}
+    extra = [t for t in DATA if t not in covered]
+    if extra:
+        from core import modeling
+        auto = modeling.suggest_schema(DATA)
+        for e in auto["entities"]:
+            if e["table"] in extra:
+                e["domain"] = _infer_domain(e["table"])
+                schema["entities"].append(e)
+        # 自动补 FK 关系
+        schema_rels = {r.get("fk") for r in schema["relations"] if r.get("fk")}
+        for r in auto["relations"]:
+            if r.get("fk") not in schema_rels:
+                schema["relations"].append(r)
+        # 重建实体索引(load_schema时构建, 需包含新增实体)
+        schema["_entities"] = {e["id"]: e for e in schema["entities"]}
+    return schema
 
 
 DATA = load_all(DATA_DIR)
@@ -205,10 +225,10 @@ def save_model_config(req: ModelConfigReq):
 
 @app.get("/ontology")
 def ontology():
-    """真实本体 schema + 图统计 + 约束校验（生产级本体建模视图）。"""
+    """真实本体 schema(自适应数据) + 图统计 + 约束校验。"""
     try:
         from core import ontology as ont
-        schema = ont.load_schema(os.path.join(ROOT, "..", "config", "ontology.json"))
+        schema = _effective_schema()
         graph = ont.build_graph(DATA, schema)
         issues = ont.validate(DATA, schema)
         return {"ok": True,
@@ -234,15 +254,20 @@ def modeling_suggest():
 
 @app.get("/graph/full")
 def graph_full():
-    """完整企业实例图（146 节点/120 边），供前端生成真实 SVG 大图。"""
+    """完整企业实例图(自适应schema)，供前端生成真实 SVG 大图(含业务域, 动态域列)。"""
     from core import ontology as ont
-    schema = ont.load_schema(os.path.join(ROOT, "..", "config", "ontology.json"))
+    schema = _effective_schema()
     g = ont.build_graph(DATA, schema)
-    nodes = [{"id": nid, "entity": n["entity"], "label": n["data"].get("name") or n["data"].get("id"),
-              "id_val": n["id"], "data": {k: v for k, v in n["data"].items() if k in ("name", "category", "stock", "safety_stock", "cost", "price", "status", "aging_days", "credit_limit", "on_time_pct", "qty")}}
+    # 实体类型 → label/业务域
+    entities = {e["id"]: {"label": e["label"], "domain": e.get("domain", "其他域")} for e in schema["entities"]}
+    nodes = [{"id": nid, "entity": n["entity"], "label": entities.get(n["entity"], {}).get("label", n["entity"]),
+              "domain": entities.get(n["entity"], {}).get("domain", "其他域"),
+              "name": n["data"].get("name") or n["data"].get("id"), "id_val": n["id"]}
              for nid, n in g["nodes"].items()]
     edges = [{"from": e["from"], "to": e["to"], "rel": e["rel"], "label": e["label"]} for e in g["edges"]]
-    return {"ok": True, "nodes": nodes, "edges": edges, "counts": {"nodes": len(nodes), "edges": len(edges)}}
+    domains = sorted({e.get("domain", "其他域") for e in schema["entities"]})
+    return {"ok": True, "nodes": nodes, "edges": edges,
+            "counts": {"nodes": len(nodes), "edges": len(edges)}, "domains": domains}
 
 
 @app.get("/graph/{entity}/{eid}")

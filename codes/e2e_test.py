@@ -25,7 +25,7 @@ def main():
     print("\n══ 二、数据→本体 ══")
     from core.domain_model import load_all
     data = load_all(os.path.join(ROOT, "data"))
-    ck("加载 6 表", len(data) == 6)
+    ck("加载 6+ 表", len(data) >= 6)
     ck("各表非空", all(len(v) > 0 for v in data.values()))
 
     print("\n══ 三、决策规则 ══")

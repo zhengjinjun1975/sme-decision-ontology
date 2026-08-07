@@ -1,105 +1,379 @@
 {
-  "_comment": "企业唯一本体定义(跨表跨域)。中庸之道: 不过繁不引OWL, 不过简不做平铺。换行业只改此文件+数据, 代码不动。",
-  "version": "1.0",
-  "entities": [
+ "_comment": "企业唯一本体定义(跨表跨域)。中庸之道: 不过繁不引OWL, 不过简不做平铺。换行业只改此文件+数据, 代码不动。",
+ "version": "1.0",
+ "entities": [
+  {
+   "id": "Product",
+   "label": "产品",
+   "table": "products",
+   "key": "id",
+   "attributes": [
     {
-      "id": "Product", "label": "产品", "table": "products", "key": "id",
-      "attributes": [
-        {"name": "name", "type": "string", "required": true, "label": "名称"},
-        {"name": "category", "type": "string", "label": "类别"},
-        {"name": "材质", "type": "string", "label": "材质"},
-        {"name": "规格", "type": "string", "label": "规格"},
-        {"name": "cost", "type": "number", "label": "成本"},
-        {"name": "price", "type": "number", "label": "售价"}
-      ]
+     "name": "name",
+     "type": "string",
+     "required": true,
+     "label": "名称"
     },
     {
-      "id": "Supplier", "label": "供应商", "table": "suppliers", "key": "id",
-      "attributes": [
-        {"name": "name", "type": "string", "required": true, "label": "名称"},
-        {"name": "on_time_pct", "type": "number", "label": "准时率"},
-        {"name": "quality_pct", "type": "number", "label": "质量合格率"}
-      ]
+     "name": "category",
+     "type": "string",
+     "label": "类别"
     },
     {
-      "id": "Inventory", "label": "库存", "table": "inventory", "key": "product_id",
-      "attributes": [
-        {"name": "stock", "type": "number", "label": "库存"},
-        {"name": "safety_stock", "type": "number", "label": "安全库存"},
-        {"name": "lead_time_days", "type": "number", "label": "提前期(天)"}
-      ]
+     "name": "材质",
+     "type": "string",
+     "label": "材质"
     },
     {
-      "id": "Sale", "label": "销售", "table": "sales", "key": "product_id", "detail": true,
-      "attributes": [
-        {"name": "date", "type": "date", "label": "日期"},
-        {"name": "qty", "type": "number", "label": "数量"}
-      ]
+     "name": "规格",
+     "type": "string",
+     "label": "规格"
     },
     {
-      "id": "Customer", "label": "客户", "table": "customers", "key": "id",
-      "attributes": [
-        {"name": "name", "type": "string", "required": true, "label": "名称"},
-        {"name": "order_amount", "type": "number", "label": "订单额"},
-        {"name": "aging_days", "type": "number", "label": "账龄(天)"},
-        {"name": "credit_limit", "type": "number", "label": "信用额度"}
-      ]
+     "name": "cost",
+     "type": "number",
+     "label": "成本"
     },
     {
-      "id": "Equipment", "label": "设备", "table": "equipment", "key": "id",
-      "attributes": [
-        {"name": "name", "type": "string", "label": "名称"},
-        {"name": "install_date", "type": "date", "label": "安装日期"},
-        {"name": "warranty_months", "type": "number", "label": "保修(月)"},
-        {"name": "status", "type": "enum", "label": "状态"}
-      ]
-    },
-    {
-      "id": "Purchase", "label": "采购", "table": "purchase", "key": "id", "detail": true,
-      "attributes": [
-        {"name": "supplier_id", "type": "string", "label": "供应商"},
-        {"name": "product_id", "type": "string", "label": "产品"},
-        {"name": "qty", "type": "number", "label": "数量"},
-        {"name": "date", "type": "date", "label": "日期"},
-        {"name": "amount", "type": "number", "label": "金额"}
-      ]
-    },
-    {
-      "id": "Production", "label": "生产", "table": "production", "key": "id", "detail": true,
-      "attributes": [
-        {"name": "product_id", "type": "string", "label": "产品"},
-        {"name": "equipment_id", "type": "string", "label": "设备"},
-        {"name": "qty", "type": "number", "label": "数量"},
-        {"name": "date", "type": "date", "label": "日期"},
-        {"name": "status", "type": "enum", "label": "状态"}
-      ]
-    },
-    {
-      "id": "Payment", "label": "回款", "table": "payments", "key": "id", "detail": true,
-      "attributes": [
-        {"name": "customer_id", "type": "string", "label": "客户"},
-        {"name": "amount", "type": "number", "label": "金额"},
-        {"name": "date", "type": "date", "label": "日期"},
-        {"name": "status", "type": "enum", "label": "状态"}
-      ]
+     "name": "price",
+     "type": "number",
+     "label": "售价"
     }
-  ],
-  "relations": [
-    {"id": "suppliedBy", "from": "Product", "to": "Supplier", "fk": "products.supplier", "cardinality": "N:1", "label": "供应"},
-    {"id": "hasInventory", "from": "Product", "to": "Inventory", "fk": "inventory.product_id", "cardinality": "1:1", "label": "库存"},
-    {"id": "hasSales", "from": "Product", "to": "Sale", "fk": "sales.product_id", "cardinality": "1:N", "label": "销售"},
-    {"id": "hasCustomer", "from": "Sale", "to": "Customer", "fk": "sales.customer_id", "cardinality": "N:1", "label": "售予客户"},
-    {"id": "purchaseFrom", "from": "Purchase", "to": "Supplier", "fk": "purchase.supplier_id", "cardinality": "N:1", "label": "向供应商采购"},
-    {"id": "purchases", "from": "Purchase", "to": "Product", "fk": "purchase.product_id", "cardinality": "N:1", "label": "采购产品"},
-    {"id": "produces", "from": "Production", "to": "Product", "fk": "production.product_id", "cardinality": "N:1", "label": "生产产品"},
-    {"id": "usesEquipment", "from": "Production", "to": "Equipment", "fk": "production.equipment_id", "cardinality": "N:1", "label": "使用设备"},
-    {"id": "paidBy", "from": "Payment", "to": "Customer", "fk": "payments.customer_id", "cardinality": "N:1", "label": "客户回款"},
-    {"id": "producedBy", "from": "Product", "to": "Equipment", "fk": null, "cardinality": "N:1", "label": "生产", "abstract": true}
-  ],
-  "constraints": [
-    {"type": "unique", "on": "Product.id", "msg": "产品编码唯一"},
-    {"type": "required", "on": "Product.name", "msg": "产品必须有名称"},
-    {"type": "positive", "on": "Inventory.stock", "msg": "库存不能为负"},
-    {"type": "positive", "on": "Product.price", "msg": "售价不能为负"}
-  ]
+   ],
+   "domain": "销售域"
+  },
+  {
+   "id": "Supplier",
+   "label": "供应商",
+   "table": "suppliers",
+   "key": "id",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "string",
+     "required": true,
+     "label": "名称"
+    },
+    {
+     "name": "on_time_pct",
+     "type": "number",
+     "label": "准时率"
+    },
+    {
+     "name": "quality_pct",
+     "type": "number",
+     "label": "质量合格率"
+    }
+   ],
+   "domain": "采购域"
+  },
+  {
+   "id": "Inventory",
+   "label": "库存",
+   "table": "inventory",
+   "key": "product_id",
+   "attributes": [
+    {
+     "name": "stock",
+     "type": "number",
+     "label": "库存"
+    },
+    {
+     "name": "safety_stock",
+     "type": "number",
+     "label": "安全库存"
+    },
+    {
+     "name": "lead_time_days",
+     "type": "number",
+     "label": "提前期(天)"
+    }
+   ],
+   "domain": "库存域"
+  },
+  {
+   "id": "Sale",
+   "label": "销售",
+   "table": "sales",
+   "key": "product_id",
+   "detail": true,
+   "attributes": [
+    {
+     "name": "date",
+     "type": "date",
+     "label": "日期"
+    },
+    {
+     "name": "qty",
+     "type": "number",
+     "label": "数量"
+    }
+   ],
+   "domain": "销售域"
+  },
+  {
+   "id": "Customer",
+   "label": "客户",
+   "table": "customers",
+   "key": "id",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "string",
+     "required": true,
+     "label": "名称"
+    },
+    {
+     "name": "order_amount",
+     "type": "number",
+     "label": "订单额"
+    },
+    {
+     "name": "aging_days",
+     "type": "number",
+     "label": "账龄(天)"
+    },
+    {
+     "name": "credit_limit",
+     "type": "number",
+     "label": "信用额度"
+    }
+   ],
+   "domain": "销售域"
+  },
+  {
+   "id": "Equipment",
+   "label": "设备",
+   "table": "equipment",
+   "key": "id",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "string",
+     "label": "名称"
+    },
+    {
+     "name": "install_date",
+     "type": "date",
+     "label": "安装日期"
+    },
+    {
+     "name": "warranty_months",
+     "type": "number",
+     "label": "保修(月)"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "label": "状态"
+    }
+   ],
+   "domain": "生产域"
+  },
+  {
+   "id": "Purchase",
+   "label": "采购",
+   "table": "purchase",
+   "key": "id",
+   "detail": true,
+   "attributes": [
+    {
+     "name": "supplier_id",
+     "type": "string",
+     "label": "供应商"
+    },
+    {
+     "name": "product_id",
+     "type": "string",
+     "label": "产品"
+    },
+    {
+     "name": "qty",
+     "type": "number",
+     "label": "数量"
+    },
+    {
+     "name": "date",
+     "type": "date",
+     "label": "日期"
+    },
+    {
+     "name": "amount",
+     "type": "number",
+     "label": "金额"
+    }
+   ],
+   "domain": "采购域"
+  },
+  {
+   "id": "Production",
+   "label": "生产",
+   "table": "production",
+   "key": "id",
+   "detail": true,
+   "attributes": [
+    {
+     "name": "product_id",
+     "type": "string",
+     "label": "产品"
+    },
+    {
+     "name": "equipment_id",
+     "type": "string",
+     "label": "设备"
+    },
+    {
+     "name": "qty",
+     "type": "number",
+     "label": "数量"
+    },
+    {
+     "name": "date",
+     "type": "date",
+     "label": "日期"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "label": "状态"
+    }
+   ],
+   "domain": "生产域"
+  },
+  {
+   "id": "Payment",
+   "label": "回款",
+   "table": "payments",
+   "key": "id",
+   "detail": true,
+   "attributes": [
+    {
+     "name": "customer_id",
+     "type": "string",
+     "label": "客户"
+    },
+    {
+     "name": "amount",
+     "type": "number",
+     "label": "金额"
+    },
+    {
+     "name": "date",
+     "type": "date",
+     "label": "日期"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "label": "状态"
+    }
+   ],
+   "domain": "财务域"
+  }
+ ],
+ "relations": [
+  {
+   "id": "suppliedBy",
+   "from": "Product",
+   "to": "Supplier",
+   "fk": "products.supplier",
+   "cardinality": "N:1",
+   "label": "供应"
+  },
+  {
+   "id": "hasInventory",
+   "from": "Product",
+   "to": "Inventory",
+   "fk": "inventory.product_id",
+   "cardinality": "1:1",
+   "label": "库存"
+  },
+  {
+   "id": "hasSales",
+   "from": "Product",
+   "to": "Sale",
+   "fk": "sales.product_id",
+   "cardinality": "1:N",
+   "label": "销售"
+  },
+  {
+   "id": "hasCustomer",
+   "from": "Sale",
+   "to": "Customer",
+   "fk": "sales.customer_id",
+   "cardinality": "N:1",
+   "label": "售予客户"
+  },
+  {
+   "id": "purchaseFrom",
+   "from": "Purchase",
+   "to": "Supplier",
+   "fk": "purchase.supplier_id",
+   "cardinality": "N:1",
+   "label": "向供应商采购"
+  },
+  {
+   "id": "purchases",
+   "from": "Purchase",
+   "to": "Product",
+   "fk": "purchase.product_id",
+   "cardinality": "N:1",
+   "label": "采购产品"
+  },
+  {
+   "id": "produces",
+   "from": "Production",
+   "to": "Product",
+   "fk": "production.product_id",
+   "cardinality": "N:1",
+   "label": "生产产品"
+  },
+  {
+   "id": "usesEquipment",
+   "from": "Production",
+   "to": "Equipment",
+   "fk": "production.equipment_id",
+   "cardinality": "N:1",
+   "label": "使用设备"
+  },
+  {
+   "id": "paidBy",
+   "from": "Payment",
+   "to": "Customer",
+   "fk": "payments.customer_id",
+   "cardinality": "N:1",
+   "label": "客户回款"
+  },
+  {
+   "id": "producedBy",
+   "from": "Product",
+   "to": "Equipment",
+   "fk": null,
+   "cardinality": "N:1",
+   "label": "生产",
+   "abstract": true
+  }
+ ],
+ "constraints": [
+  {
+   "type": "unique",
+   "on": "Product.id",
+   "msg": "产品编码唯一"
+  },
+  {
+   "type": "required",
+   "on": "Product.name",
+   "msg": "产品必须有名称"
+  },
+  {
+   "type": "positive",
+   "on": "Inventory.stock",
+   "msg": "库存不能为负"
+  },
+  {
+   "type": "positive",
+   "on": "Product.price",
+   "msg": "售价不能为负"
+  }
+ ]
 }
