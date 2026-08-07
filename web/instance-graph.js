@@ -11,7 +11,8 @@ async function loadGraphFull(){
   if(!r.ok||!r.nodes||!r.nodes.length){ el.innerHTML='<div class="empty">无实例数据</div>';return; }
   if(typeof echarts==='undefined'){ el.innerHTML='<div class="empty">ECharts 未加载</div>';return; }
   const nodes=r.nodes, edges=r.edges||[];
-  const domains=r.domains||["其他域"];
+  // 域列表从节点实际 domain 构建(含 Category 的 其他域, 避免 domainX 缺键→NaN)
+  const domains=[...new Set(nodes.map(n=>n.domain||"其他域"))];
   const grp={}; nodes.forEach(n=>{ (grp[n.entity]=grp[n.entity]||[]).push(n); });
   const entityDomain={}; nodes.forEach(n=>{ entityDomain[n.entity]=n.domain||"其他域"; });
 
@@ -33,12 +34,13 @@ async function loadGraphFull(){
     });
     entityY[entityDomain[et]]=y+Math.ceil((grp[et]||[]).length/6)*46+44;
   });
-  // 归一化缩放到容器尺寸(否则layout:'none'原始坐标超出画布→空白)
+  // 归一化缩放到容器尺寸(否则layout:'none'原始坐标超出画布→空白); 过滤NaN
   const cw=el.clientWidth||720, ch=el.clientHeight||480;
   let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-  Object.values(pos).forEach(p=>{ minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y); });
+  Object.values(pos).forEach(p=>{ if(p.x==null||p.y==null||isNaN(p.x)||isNaN(p.y))return;
+    minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y); });
   const sx=(cw-60)/((maxX-minX)||1), sy=(ch-60)/((maxY-minY)||1), s=Math.min(sx,sy,1);
-  Object.keys(pos).forEach(k=>{ pos[k]={x:30+(pos[k].x-minX)*s, y:30+(pos[k].y-minY)*s}; });
+  Object.keys(pos).forEach(k=>{ if(pos[k].x==null||isNaN(pos[k].x))return; pos[k]={x:30+(pos[k].x-minX)*s, y:30+(pos[k].y-minY)*s}; });
   const cx2=cw/2, topY2=pos['__hub__'].y;
 
   // ECharts graph
