@@ -1,6 +1,6 @@
-# sme-decision-ontology — 本体驱动的中小企业数据决策套件
+# 基于企业本体的智能经营决策平台
 
-> **数据与决策之间的薄层，agent 的可信决策 API。** 把中小企业进销存台账变成**可拍板的确定性决策建议**（本地、零 token、可解释）。CSV → 统一领域模型 → 决策规则 → 行动清单。
+> **数据与决策之间的薄层，agent 的可信决策 API。** 把企业进销存+运维台账变成**可拍板的确定性决策建议**（本地、零 token、可解释）。企业级价值链本体 → 决策规则 → 行动清单。
 
 [![Version](https://img.shields.io/badge/version-0.11-blue.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)

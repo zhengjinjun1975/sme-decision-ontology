@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>中小企决策套件</title>
+<title>基于企业本体的智能经营决策平台</title>
 <style>
 :root{--bg:#f5f7fa;--card:#ffffff;--line:#e4e8ef;--fg:#1a2233;--dim:#6b7a90;
 --red:#e74c3c;--orange:#f39c12;--green:#27ae60;--blue:#2f6bff;--purple:#8e44ad;
@@ -80,7 +80,7 @@ h1 span{color:var(--blue)}
 <body>
 <div class="wrap">
 <header>
-  <div><h1>⚙️ <span>中小企决策套件</span></h1><div class="sub">sme-decision-ontology · 本地 · 确定性 · 可解释</div></div>
+  <div><h1>⚙️ <span>基于企业本体的智能经营决策平台</span></h1><div class="sub">企业级价值链本体 · 本地 · 确定性 · 可解释</div></div>
   <div class="count" id="status">连接中…</div>
 </header>
 
@@ -201,7 +201,9 @@ async function loadSummary(){
 }
 async function loadDecision(){
   const d=await api('/decisions'); allDecisions=d.decisions;
-  document.getElementById('nav').innerHTML=DECISIONS.map(([label,kw],i)=>
+  document.getElementById('nav').innerHTML=
+    `<div style="width:100%;font-size:12px;color:var(--dim);margin-bottom:4px">8 类决策：</div>`+
+    DECISIONS.map(([label,kw],i)=>
     `<button class="${i===0?'active':''}" onclick="selDec('${kw}',this)">${label}</button>`).join('');
   renderDecisions('');
   const a=await api('/actions');
