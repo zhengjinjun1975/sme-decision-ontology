@@ -135,6 +135,8 @@ h1 span{color:var(--blue)}
     <div id="ontology-entities"><div class="empty">加载中…</div></div>
     <h2 style="margin-top:18px"><span class="dot" style="background:var(--green)"></span>实体关系 + 约束</h2>
     <div id="ontology-relations"><div class="empty">加载中…</div></div>
+    <h2 style="margin-top:18px"><span class="dot" style="background:var(--orange)"></span>决策依据（本体驱动的规则 → 实体 → 公式）</h2>
+    <div id="ontology-decision"><div class="empty">加载中…</div></div>
   </div>
 </div>
 
@@ -167,7 +169,7 @@ h1 span{color:var(--blue)}
 </div>
 
 <script src="/static/lib/echarts.min.js"></script>
-<script src="/static/instance-graph.js?v=11"></script>
+<script src="/static/instance-graph.js?v=12"></script>
 <script>
 const MODULES=[["inventory","库存"],["procurement","采购"],["sales","销售/信用"],["equipment","设备"]];
 const DECISIONS=[["全部",""],["补货","补货"],["缺货","缺货"],["呆滞","呆滞"],["比价","比价"],["供应商","供应商"],["预测","预测"],["信用","信用"],["维护","维护"],["超额度","超额度"]];
@@ -273,6 +275,18 @@ async function loadOntology(){
   const cons=(m.constraints||[]).map(c=>`<span class="rel-chip">${esc(c.type)}: ${esc(c.on)}</span>`).join('');
   const rels=(m.relations||[]).map(rl=>`<span class="rel-chip">${esc(rl.from)} →${esc(rl.id)}→ ${esc(rl.to)}${rl.inverse?' ·'+esc(rl.inverse):''}</span>`).join('');
   document.getElementById('ontology-relations').innerHTML=rels+cons;
+  // 决策依据: 规则 → 实体 → 公式 + 当前决策数(本体驱动决策)
+  const RULES=[['补货','库存','reorder_level=(日均出库×提前期)+安全库存, stock<→补货','inventory'],
+    ['缺货','库存','stock < 安全库存 → 预警','inventory'],['呆滞','库存','周转率=出库/库存 < 阈值 → 预警','inventory'],
+    ['比价','采购','同产品多供应商取低成本+议价提示','procurement'],['供应商','采购','评分=准时×0.5+合格×0.5 < 阈值 → 预警','procurement'],
+    ['预测','销售','近window期销量下滑>30% → 预警','sales'],['信用','销售','账龄≥阈值 → 催收; 欠款>额度 → 预警','sales'],
+    ['维护','设备','保修过期/临期/待修 → 告急/预警','equipment']];
+  const dec=await api('/decisions');
+  const decCounts={}; if(dec.ok) Object.entries(dec.decisions||{}).forEach(([mod,arr])=>{ decCounts[mod]=arr.length; });
+  document.getElementById('ontology-decision').innerHTML=RULES.map(([name,domain,formula,mod])=>
+    `<div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:6px 0;font-size:12px">
+      <div><b style="color:var(--blue)">${esc(name)}</b> · ${esc(domain)}域 · <span style="color:var(--dim)">${esc(formula)}</span>
+      <span class="count" style="margin-left:8px">当前 ${decCounts[mod]||0} 条</span></div></div>`).join('');
 }
 async function loadModel(){
   const r=await api('/model');

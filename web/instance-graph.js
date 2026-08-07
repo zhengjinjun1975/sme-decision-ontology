@@ -59,6 +59,11 @@ async function loadGraphFull(){
   });
   // links 只保留两端都在 data 的(否则 ECharts 引用不存在节点→渲染异常)
   const links=edges.map(e=>({source:e.from,target:e.to})).filter(l=>nodeIds.has(l.source)&&nodeIds.has(l.target));
+  // 企业 hub → 各实体类代表节点(企业拥有/运营所有业务对象, 体现关联度)
+  Object.keys(grp).forEach(et=>{
+    const rep=(grp[et]||[])[0]; if(rep&&rep.id&&nodeIds.has(rep.id))
+      links.push({source:'__hub__',target:rep.id,lineStyle:{color:'#2f6bff',opacity:0.35,width:1.5},label:{show:false}});
+  });
   const legend=Object.entries(GRAPH_COLORS).filter(([k])=>grp[k]).map(([k,v])=>`<span style="display:inline-block;margin-right:12px;font-size:11px;color:var(--dim)"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${v};margin-right:4px"></i>${k}</span>`).join('');
   // 先建 chart div + legend(避免 innerHTML+= 清掉 canvas)
   el.innerHTML=`<div id="ontchart" style="height:480px;width:100%"></div>
