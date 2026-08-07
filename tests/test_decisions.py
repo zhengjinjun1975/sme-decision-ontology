@@ -18,28 +18,28 @@ def _run(module):
 def test_d1_reorder():
     """库存补货: 日均出库×提前期+安全库存, stock<reorder→补货"""
     s = _run("inventory")
-    # P03 蝶阀 stock=10 < reorder(约 5.5×10+15≈70) → 应补货
+    # P03 蝶阀 stock=15 < reorder(约 5.75×10+20≈77) → 应补货
     assert any("P03" in x.get("entity", "") for x in s)
 
 
 def test_d2_shortage():
     """缺货: stock<safety_stock→预警"""
     s = _run("inventory")
-    # P02 stock=20 < safety=25 → 缺货
-    assert any("P02" in x.get("entity", "") for x in s)
+    # P03 stock=15 < safety=20 → 缺货
+    assert any("P03" in x.get("entity", "") for x in s)
 
 
 def test_d7_credit():
     """客户信用: aging>60→告急催收"""
     s = _run("sales")
-    # C02 aging=75, C03 aging=90 → 高风险
-    assert any("C02" in x.get("entity", "") for x in s)
+    # C03 aging=78, C05 aging=88 → 高风险
+    assert any("C03" in x.get("entity", "") for x in s)
 
 
 def test_d8_equipment():
     """设备维护: 状态待修→告急"""
     s = _run("equipment")
-    assert any("E03" in x.get("entity", "") for x in s)
+    assert any("E04" in x.get("entity", "") for x in s)
 
 
 def test_decision_structure():
