@@ -88,10 +88,18 @@ async function loadGraphFull(){
 }
 window.addEventListener('resize',()=>{ if(window._ontChart) window._ontChart.resize(); });
 
-// 导出 ECharts 完整图到桌面(高分辨率 PNG)
+// 导出 ECharts 完整图到桌面(高分辨率, ECharts原样式复刻)
 async function exportPng(){
   if(!window._ontChart) return alert('请先打开本体建模图');
-  const dataUrl=window._ontChart.getDataURL({type:'png',pixelRatio:2,backgroundColor:'#fff'});
+  const chart=window._ontChart, el=document.getElementById('ontchart');
+  const oldW=el.style.width, oldH=el.style.height;
+  // 临时放大容器→高清全图(原样式, 非变形)
+  el.style.width='1600px'; el.style.height='1000px';
+  chart.resize();
+  await new Promise(r=>setTimeout(r,150));  // 等渲染
+  const dataUrl=chart.getDataURL({type:'png',pixelRatio:2,backgroundColor:'#ffffff'});
+  // 还原容器
+  el.style.width=oldW; el.style.height=oldH; chart.resize();
   const r=await api('/export/ontology-png',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:dataUrl,filename:'企业本体图.png'})});
   alert(r.ok?('已保存到桌面: '+r.path):('导出失败: '+r.error));
 }
