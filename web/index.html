@@ -49,26 +49,30 @@ h1 span{color:var(--blue)}
 .entity-card .label{font-weight:600;color:var(--blue)}
 .entity-card .fields{color:var(--dim);font-size:11px;margin-top:3px}
 .rel-chip{display:inline-block;padding:5px 12px;border-radius:16px;background:#eaf0ff;color:var(--blue);font-size:11px;margin:4px 5px 0 0;border:1px solid #d6e4ff}
-.model-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);margin-bottom:10px}
+.model-item{padding:14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);margin-bottom:10px}
+.model-item .m-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .model-item .name{font-weight:600;font-size:13px}
-.model-item .cfg{color:var(--dim);font-size:11px;margin-top:2px}
+.model-item input{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);font-size:12px;margin-bottom:6px;color:var(--fg);outline:none}
+.model-item input:focus{border-color:var(--blue)}
+.model-item .m-actions{display:flex;gap:8px;margin-top:8px}
 .model-item button{padding:6px 14px;border-radius:16px;border:none;background:var(--blue);color:#fff;font-size:12px;cursor:pointer}
-.model-item button.active{background:var(--green)}
+.model-item button.green{background:var(--green)}
 .src-row{display:flex;justify-content:space-between;padding:8px 0;font-size:12px;border-bottom:1px solid var(--line)}
 .src-row span:last-child{color:var(--blue);font-weight:600}
 .summary-banner{background:linear-gradient(135deg,#2f6bff,#8e44ad);color:#fff;border-radius:14px;padding:18px 20px;margin-bottom:16px}
 .summary-banner .s-title{font-size:15px;font-weight:700;margin-bottom:6px}
 .summary-banner .s-stat{font-size:12px;opacity:.9;margin-bottom:8px}
 .summary-banner .s-rec{font-size:13px;background:rgba(255,255,255,.15);border-radius:8px;padding:8px 12px;margin-top:4px}
-.setdir{display:flex;gap:10px;margin-bottom:16px}
-.setdir input{flex:1;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:13px;outline:none}
-.setdir input:focus{border-color:var(--blue)}
-.setdir button{padding:12px 20px;border-radius:12px;border:none;background:var(--green);color:#fff;font-size:13px;cursor:pointer;font-weight:600}
-.ontology-graph{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.setdir{display:flex;gap:10px;margin-bottom:16px;align-items:center}
+.setdir .browse{padding:12px 20px;border-radius:12px;border:none;background:var(--green);color:#fff;font-size:13px;cursor:pointer;font-weight:600}
+.setdir input.path{flex:1;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--dim);font-size:13px}
+.setdir button.set{padding:12px 20px;border-radius:12px;border:none;background:var(--blue);color:#fff;font-size:13px;cursor:pointer}
+.upload-msg{color:var(--green);font-size:12px;margin-bottom:10px}
+.ontology-graph{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;align-items:center}
 .onto-node{background:#eaf0ff;border:1px solid #d6e4ff;border-radius:14px;padding:12px 16px;min-width:110px;text-align:center}
 .onto-node .n-name{font-weight:700;font-size:14px;color:var(--blue)}
 .onto-node .n-cn{color:var(--dim);font-size:11px}
-.onto-rel{color:var(--dim);font-size:11px;align-self:center}
+.onto-rel{color:var(--dim);font-size:11px}
 @media(max-width:700px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -80,26 +84,29 @@ h1 span{color:var(--blue)}
 </header>
 
 <div class="viewnav">
-  <button class="active" onclick="showView('data',this)">🗂️ ① 数据接入</button>
-  <button onclick="showView('ontology',this)">🧬 ② 本体建模</button>
-  <button onclick="showView('decision',this)">📊 ③ 决策建议</button>
-  <button onclick="showView('model',this)">🤖 ④ 模型切换</button>
+  <button class="active" onclick="showView('data',this)">🗂️ 数据接入</button>
+  <button onclick="showView('ontology',this)">🧬 本体建模</button>
+  <button onclick="showView('decision',this)">📊 决策建议</button>
+  <button onclick="showView('model',this)">🤖 模型设置</button>
 </div>
 
-<!-- ① 数据接入(最前) -->
+<!-- 数据接入 -->
 <div id="view-data">
   <div class="card">
-    <h2><span class="dot" style="background:var(--green)"></span>数据目录接入</h2>
+    <h2><span class="dot" style="background:var(--green)"></span>数据接入（浏览器选择路径）</h2>
     <div class="setdir">
-      <input id="datadir" placeholder="输入数据目录路径(放 产品/库存/销售/供应商/客户/设备 CSV)" onkeydown="if(event.key==='Enter')setDataDir()">
-      <button onclick="setDataDir()">切换目录</button>
+      <button class="browse" onclick="document.getElementById('dirpicker').click()">📂 浏览选择数据目录</button>
+      <input class="path" id="datadir" placeholder="或手动输入服务器数据目录路径">
+      <button class="set" onclick="setDataDir()">加载</button>
+      <input type="file" id="dirpicker" webkitdirectory multiple style="display:none" onchange="uploadFiles(this)">
     </div>
+    <div class="upload-msg" id="upload-msg"></div>
     <div id="data-sources"><div class="empty">加载中…</div></div>
-    <p style="color:var(--dim);font-size:11px;margin-top:12px">也支持 SQLite/MySQL/PostgreSQL（data_mapper 对接），或手工录入。数据接入是 80% 的活——这里是第一站。</p>
+    <p style="color:var(--dim);font-size:11px;margin-top:12px">点「浏览选择数据目录」从本地选台账 CSV 所在文件夹，自动上传并加载。也支持 SQLite/MySQL/PostgreSQL 对接。</p>
   </div>
 </div>
 
-<!-- ② 本体建模(可视化) -->
+<!-- 本体建模 -->
 <div id="view-ontology" style="display:none">
   <div class="card">
     <h2><span class="dot" style="background:var(--purple)"></span>统一领域模型（本体 · 一本体多决策）</h2>
@@ -111,11 +118,11 @@ h1 span{color:var(--blue)}
   </div>
 </div>
 
-<!-- ③ 决策建议(含总结报告) -->
+<!-- 决策建议 -->
 <div id="view-decision" style="display:none">
   <div id="summary-banner"></div>
   <div class="ask">
-    <input id="q" placeholder="自然语言问决策：如「库存补货」「设备维护」「采购和库存」" onkeydown="if(event.key==='Enter')nlAsk()">
+    <input id="q" placeholder="自然语言问决策：如「库存补货」「设备维护」" onkeydown="if(event.key==='Enter')nlAsk()">
     <button onclick="nlAsk()">问决策</button>
   </div>
   <div class="nav" id="nav"></div>
@@ -129,18 +136,19 @@ h1 span{color:var(--blue)}
   </div>
 </div>
 
-<!-- ④ 模型切换(带配置) -->
+<!-- 模型设置 -->
 <div id="view-model" style="display:none">
   <div class="card">
-    <h2><span class="dot" style="background:var(--purple)"></span>模型配置（本地优先 + 远端降级）</h2>
+    <h2><span class="dot" style="background:var(--purple)"></span>模型设置（本地优先 + 远端降级）</h2>
     <div id="model-list"><div class="empty">加载中…</div></div>
-    <p style="color:var(--dim);font-size:11px;margin-top:12px">规则算，LLM 讲：计算层零 token 确定性，LLM 只做解释/兜底。默认本地 Ollama，远端 DeepSeek 降级。</p>
+    <p style="color:var(--dim);font-size:11px;margin-top:12px">规则算，LLM 讲。配置具体模型参数，切换使用哪个。默认本地 Ollama，远端 DeepSeek 降级。</p>
   </div>
 </div>
 </div>
 
 <script>
 const MODULES=[["inventory","库存"],["procurement","采购"],["sales","销售/信用"],["equipment","设备"]];
+const DECISIONS=[["全部",""],["补货","补货"],["缺货","缺货"],["呆滞","呆滞"],["比价","比价"],["供应商","供应商"],["预测","预测"],["信用","信用"],["维护","维护"],["超额度","超额度"]];
 let allDecisions={};
 async function api(path,opts){return (await fetch(path,opts)).json();}
 function esc(s){return String(s??"").replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
@@ -149,9 +157,10 @@ function item(s){
   return `<div class="item"><div class="top"><span class="entity">${ent}</span><span class="tag ${tag}">${tag}</span></div>
   <div class="action">${act}</div><div class="reason">${rea}</div></div>`;
 }
-function renderDecisions(module){
+function renderDecisions(kw){
   const el=document.getElementById('decisions');
-  const sug=(module?allDecisions[module]:Object.values(allDecisions).flat())||[];
+  let sug=Object.values(allDecisions).flat();
+  if(kw) sug=sug.filter(s=>(s.action||'').includes(kw)||(s.reason||'').includes(kw));
   document.getElementById('totalCount').textContent=`${sug.length} 条`;
   el.innerHTML=sug.length?sug.map(item).join(''):'<div class="empty">无决策建议</div>';
 }
@@ -163,17 +172,25 @@ async function loadData(){
   const d=await api('/data/dir');
   document.getElementById('datadir').value=d.data_dir;
 }
+async function uploadFiles(input){
+  if(!input.files||!input.files.length)return;
+  const fd=new FormData();
+  [...input.files].filter(f=>f.name.endsWith('.csv')).forEach(f=>fd.append('files',f));
+  const r=await fetch('/data/upload',{method:'POST',body:fd}).then(x=>x.json());
+  document.getElementById('upload-msg').textContent=`✅ 上传 ${r.uploaded.length} 个文件: ${r.uploaded.join(', ')}`;
+  loadData();loadSummary();loadDecision();input.value='';
+}
 async function setDataDir(){
   const dir=document.getElementById('datadir').value.trim();
   if(!dir)return;
   const r=await api('/data/set-dir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dir})});
-  if(r.ok){document.getElementById('status').textContent='已切换目录';loadData();loadSummary();}
-  else{alert('目录无效: '+r.error);}
+  if(r.ok){document.getElementById('upload-msg').textContent='✅ 已切换目录';loadData();loadSummary();loadDecision();}
+  else{document.getElementById('upload-msg').textContent='❌ 目录无效: '+r.error;}
 }
 async function loadSummary(){
   const r=await api('/decision/summary');
-  const rep=r.report;
-  const lv=rep.by_level;
+  if(!r.ok)return;
+  const rep=r.report,lv=rep.by_level;
   document.getElementById('summary-banner').innerHTML=
     `<div class="summary-banner"><div class="s-title">📋 决策总结报告</div>
     <div class="s-stat">共 ${rep.total} 条建议 · 告急 ${lv.告急||0} · 预警 ${lv.预警||0} · 建议 ${lv.建议||0}</div>
@@ -182,10 +199,9 @@ async function loadSummary(){
 }
 async function loadDecision(){
   const d=await api('/decisions'); allDecisions=d.decisions;
-  document.getElementById('nav').innerHTML=MODULES.map(([m,label],i)=>
-    `<button class="${i===0?'active':''}" onclick="selModule('${m}',this)">${label}<span class="count" style="margin-left:6px">${(allDecisions[m]||[]).length}</span></button>`).join('')
-    +`<button onclick="selModule('',this)">全部</button>`;
-  renderDecisions('inventory');
+  document.getElementById('nav').innerHTML=DECISIONS.map(([label,kw],i)=>
+    `<button class="${i===0?'active':''}" onclick="selDec('${kw}',this)">${label}</button>`).join('');
+  renderDecisions('');
   const a=await api('/actions');
   document.getElementById('actions').innerHTML=(a.actions||[]).slice(0,8).map(x=>
     `<div class="item"><div class="top"><span class="entity">${esc(x.type)}</span><span class="tag ${esc(x.priority)}">${esc(x.priority)}</span></div>
@@ -212,10 +228,27 @@ async function loadOntology(){
 }
 async function loadModel(){
   const r=await api('/model');
+  if(!r.ok)return;
   document.getElementById('model-list').innerHTML=Object.entries(r.models).map(([k,v])=>
-    `<div class="model-item"><div><div class="name">${esc(v.name)}</div>
-    <div class="cfg">类型: ${esc(v.type||'')} · 模型: ${esc(v.model||'')} · ${esc(v.base_url||'')}</div></div>
-    <button class="${k===r.active?'active':''}" onclick="switchModel('${k}')">${k===r.active?'✓ 使用中':'切换到'}</button></div>`).join('');
+    `<div class="model-item">
+      <div class="m-head"><span class="name">${esc(v.name||k)}</span>
+      <button class="${k===r.active?'green':''}" onclick="switchModel('${k}')">${k===r.active?'✓ 使用中':'切换'}</button></div>
+      <input id="m-${k}-name" value="${esc(v.name||'')}" placeholder="名称">
+      <input id="m-${k}-type" value="${esc(v.type||'')}" placeholder="类型(ollama/openai)">
+      <input id="m-${k}-url" value="${esc(v.base_url||'')}" placeholder="Base URL">
+      <input id="m-${k}-model" value="${esc(v.model||'')}" placeholder="模型名">
+      <input id="m-${k}-key" value="${esc(v.api_key||'')}" placeholder="API Key">
+      <div class="m-actions"><button class="green" onclick="saveModel('${k}')">保存配置</button></div>
+    </div>`).join('');
+}
+function modelCfg(k){
+  const g=id=>document.getElementById('m-'+k+'-'+id).value.trim();
+  return {name:g('name'),type:g('type'),base_url:g('url'),model:g('model'),api_key:g('key')};
+}
+async function saveModel(k){
+  const r=await api('/model/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:k,config:modelCfg(k)})});
+  document.getElementById('status').textContent=r.ok?`模型 ${k} 已保存`:'保存失败';
+  if(r.ok)loadModel();
 }
 async function switchModel(k){
   const r=await api('/model',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:k})});
@@ -225,12 +258,12 @@ function showView(v,btn){
   document.querySelectorAll('.viewnav button').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   ['data','ontology','decision','model'].forEach(x=>document.getElementById('view-'+x).style.display=(x===v?'':'none'));
-  if(v==='decision'){loadSummary();}
+  if(v==='decision')loadSummary();
 }
-function selModule(m,btn){
+function selDec(kw,btn){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  renderDecisions(m);
+  renderDecisions(kw);
 }
 async function nlAsk(){
   const q=document.getElementById('q').value.trim();
@@ -238,7 +271,7 @@ async function nlAsk(){
   const res=await api('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})});
   if(res.mode==='miss'){renderRaw([{level:'提示',entity:'—',action:res.answer,reason:''}]);}
   else if(res.mode==='confirm'){renderRaw([{level:'提示',entity:'—',action:'问题涉及多个决策域：'+res.candidates.join('/')+'，请具体指定',reason:res.answer}]);}
-  else{renderDecisions(res.module);}
+  else{renderDecisions('');}
 }
 function renderRaw(list){document.getElementById('decisions').innerHTML=list.map(item).join('');}
 document.getElementById('status').textContent='已连接';

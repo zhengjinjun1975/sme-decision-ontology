@@ -3,7 +3,7 @@
  "active": "local_ollama",
  "models": {
   "local_ollama": {
-   "name": "本地Ollama(离线)",
+   "name": "本地Ollama",
    "type": "openai",
    "base_url": "http://localhost:11434/v1",
    "model": "qwen2.5:7b",

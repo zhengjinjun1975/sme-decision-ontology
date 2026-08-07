@@ -10,7 +10,7 @@ import json
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -100,6 +100,24 @@ def get_data_dir():
     return {"ok": True, "data_dir": DATA_DIR}
 
 
+@app.post("/data/upload")
+async def upload_data(files: list[UploadFile] = File(...)):
+    """浏览器选择路径上传数据：保存 CSV 到数据目录并重载。"""
+    global DATA_DIR
+    os.makedirs(DATA_DIR, exist_ok=True)
+    saved = []
+    for f in files:
+        if not f.filename.endswith(".csv"):
+            continue
+        dest = os.path.join(DATA_DIR, os.path.basename(f.filename))
+        content = await f.read()
+        with open(dest, "wb") as fh:
+            fh.write(content)
+        saved.append(f.filename)
+    _reload_data()
+    return {"ok": True, "uploaded": saved, "sources": {k: len(v) for k, v in DATA.items()}}
+
+
 @app.post("/model")
 def switch_model(req: ModelReq):
     p = os.path.join(ROOT, "..", "config", "model_config.json")
@@ -109,6 +127,26 @@ def switch_model(req: ModelReq):
     cfg["active"] = req.active
     json.dump(cfg, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     return {"ok": True, "active": req.active}
+
+
+class ModelConfigReq(BaseModel):
+    key: str
+    config: dict
+
+
+@app.post("/model/config")
+def save_model_config(req: ModelConfigReq):
+    """模型设置：保存具体配置(base_url/model/api_key/name/type)。"""
+    p = os.path.join(ROOT, "..", "config", "model_config.json")
+    cfg = json.load(open(p, encoding="utf-8"))
+    if req.key not in cfg.get("models", {}):
+        return {"ok": False, "error": f"未知模型: {req.key}"}
+    allowed = {"name", "type", "base_url", "model", "api_key"}
+    for k, v in req.config.items():
+        if k in allowed:
+            cfg["models"][req.key][k] = v
+    json.dump(cfg, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    return {"ok": True, "key": req.key, "models": cfg["models"]}
 
 
 @app.get("/ontology")
