@@ -129,6 +129,8 @@ h1 span{color:var(--blue)}
   <div class="card">
     <h2><span class="dot" style="background:var(--purple)"></span>统一领域模型（本体 · 一本体多决策）</h2>
     <div class="ontology-graph" id="ontology-graph"><div class="empty">加载中…</div></div>
+    <h2 style="margin-top:14px"><span class="dot" style="background:var(--purple)"></span>类型体系（Is-A 企业本体）</h2>
+    <div id="ontology-hierarchy"><div class="empty">加载中…</div></div>
     <h2 style="margin-top:18px"><span class="dot" style="background:var(--blue)"></span>实体字段</h2>
     <div id="ontology-entities"><div class="empty">加载中…</div></div>
     <h2 style="margin-top:18px"><span class="dot" style="background:var(--green)"></span>实体关系 + 约束</h2>
@@ -164,7 +166,7 @@ h1 span{color:var(--blue)}
 </div>
 </div>
 
-<script src="/static/instance-graph.js?v=4"></script>
+<script src="/static/instance-graph.js?v=5"></script>
 <script>
 const MODULES=[["inventory","库存"],["procurement","采购"],["sales","销售/信用"],["equipment","设备"]];
 const DECISIONS=[["全部",""],["补货","补货"],["缺货","缺货"],["呆滞","呆滞"],["比价","比价"],["供应商","供应商"],["预测","预测"],["信用","信用"],["维护","维护"],["超额度","超额度"]];
@@ -258,11 +260,18 @@ async function loadOntology(){
   const m=r.model;
   document.getElementById('ontology-graph').innerHTML='<div class="empty">实例图加载中…</div>';
   loadGraphFull();
+  // 类型体系(Is-A) + 属性语义角色 (Palantir 风格深化)
+  const om=await api('/ontology/model');
+  if(om.ok&&om.model&&om.model.type_hierarchy){
+    const th=om.model.type_hierarchy;
+    document.getElementById('ontology-hierarchy').innerHTML=th.map(h=>
+      `<div style="margin:3px 0;font-size:12px;color:var(--fg)">${h.super?'└ ':''}<b>${esc(h.label)}</b>${h.entities?' <span style="color:var(--dim)">['+esc(h.entities.join(','))+']</span>':''}</div>`).join('');
+  }
   document.getElementById('ontology-entities').innerHTML=m.entities.map(e=>
-    `<div class="entity-card"><div><div class="label">${esc(e.label)} <span style="font-weight:400;color:var(--dim)">${esc(e.id)} · ${esc(e.table)}</span></div>
-    <div class="fields">${esc((e.attributes||[]).map(a=>a.label+'('+a.type+')').join(' · '))}</div></div></div>`).join('');
+    `<div class="entity-card"><div><div class="label">${esc(e.label)} <span style="font-weight:400;color:var(--dim)">${esc(e.id)} · ${esc(e.table)} · ${esc(e.domain||'')}</span></div>
+    <div class="fields">${esc((e.attributes||[]).map(a=>a.label+'('+(a.role||a.type)+')').join(' · '))}</div></div></div>`).join('');
   const cons=(m.constraints||[]).map(c=>`<span class="rel-chip">${esc(c.type)}: ${esc(c.on)}</span>`).join('');
-  const rels=(m.relations||[]).map(rl=>`<span class="rel-chip">${esc(rl.from)} →${esc(rl.id)}→ ${esc(rl.to)}</span>`).join('');
+  const rels=(m.relations||[]).map(rl=>`<span class="rel-chip">${esc(rl.from)} →${esc(rl.id)}→ ${esc(rl.to)}${rl.inverse?' ·'+esc(rl.inverse):''}</span>`).join('');
   document.getElementById('ontology-relations').innerHTML=rels+cons;
 }
 async function loadModel(){
