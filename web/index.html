@@ -63,6 +63,7 @@ h1 span{color:var(--blue)}
 .summary-banner .s-title{font-size:15px;font-weight:700;margin-bottom:6px}
 .summary-banner .s-stat{font-size:12px;opacity:.9;margin-bottom:8px}
 .summary-banner .s-rec{font-size:13px;background:rgba(255,255,255,.15);border-radius:8px;padding:8px 12px;margin-top:4px}
+.summary-banner .s-llm{font-size:13px;background:rgba(255,255,255,.2);border-radius:8px;padding:10px 12px;margin-top:8px;line-height:1.6}
 .setdir{display:flex;gap:10px;margin-bottom:16px;align-items:center}
 .setdir .browse{padding:12px 20px;border-radius:12px;border:none;background:var(--green);color:#fff;font-size:13px;cursor:pointer;font-weight:600}
 .setdir input.path{flex:1;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--dim);font-size:13px}
@@ -155,6 +156,7 @@ h1 span{color:var(--blue)}
     </div>
     <div class="card"><h2><span class="dot" style="background:var(--orange)"></span>行动清单</h2><div id="actions"><div class="empty">加载中…</div></div></div>
     <div class="card"><h2><span class="dot" style="background:var(--green)"></span>决策阈值</h2><div id="thresholds"><div class="empty">加载中…</div></div></div>
+    <div class="card"><h2><span class="dot" style="background:var(--blue)"></span>阈值自适应（执行闭环）</h2><div id="threshold-adapt"><div class="empty">加载中…</div></div></div>
   </div>
 </div>
 
@@ -169,7 +171,7 @@ h1 span{color:var(--blue)}
 </div>
 
 <script src="/static/lib/echarts.min.js"></script>
-<script src="/static/instance-graph.js?v=12"></script>
+<script src="/static/instance-graph.js?v=13"></script>
 <script>
 const MODULES=[["inventory","库存"],["procurement","采购"],["sales","销售/信用"],["equipment","设备"]];
 const DECISIONS=[["全部",""],["补货","补货"],["缺货","缺货"],["呆滞","呆滞"],["比价","比价"],["供应商","供应商"],["预测","预测"],["信用","信用"],["维护","维护"],["超额度","超额度"]];
@@ -236,11 +238,13 @@ async function loadSummary(){
   const r=await api('/decision/summary');
   if(!r.ok)return;
   const rep=r.report,lv=rep.by_level;
+  const llm=rep.llm_summary?`<div class="s-llm">🤖 LLM 执行摘要：${esc(rep.llm_summary)}</div>`:'';
   document.getElementById('summary-banner').innerHTML=
     `<div class="summary-banner"><div class="s-title">📋 决策总结报告</div>
     <div class="s-stat">共 ${rep.total} 条建议 · 告急 ${lv.告急||0} · 预警 ${lv.预警||0} · 建议 ${lv.建议||0}</div>
     ${rep.final_recommendation.map(x=>`<div class="s-rec">🎯 ${esc(x)}</div>`).join('')}
-    <div class="s-rec" style="margin-top:8px;background:rgba(255,255,255,.1)">💡 规则算，LLM 讲——结构化决策零 token 确定性；开放问题走 LLM 兜底。</div></div>`;
+    ${llm}
+    <div class="s-rec" style="margin-top:8px;background:rgba(255,255,255,.1)">💡 规则算，LLM 讲——结构化决策零 token 确定性；执行摘要由本地 Ollama 生成。</div></div>`;
 }
 async function loadDecision(){
   const d=await api('/decisions'); allDecisions=d.decisions;
@@ -251,8 +255,12 @@ async function loadDecision(){
   renderDecisions('');
   const a=await api('/actions');
   document.getElementById('actions').innerHTML=(a.actions||[]).slice(0,8).map(x=>
-    `<div class="item"><div class="top"><span class="entity">${esc(x.type)}</span><span class="tag ${esc(x.priority)}">${esc(x.priority)}</span></div>
+    `<div class="item"><div class="top"><span class="entity">${esc(x.type)}</span><span class="tag ${esc(x.priority)}">${esc(x.priority)}</span>
+    ${x.status==='完成'?`<span class="tag" style="background:var(--green);color:#fff">✓ 完成</span>`:`<button class="set" style="padding:4px 10px;font-size:11px" onclick="completeAction('${x.id}')">完成</button>`}</div>
     <div class="action">${esc(x.action)}</div><div class="reason">${esc(x.reason||'')}</div></div>`).join('')||'<div class="empty">无待办行动</div>';
+  // 执行闭环第三步: 阈值自适应建议
+  const ad=await api('/decision/threshold-adapt');
+  document.getElementById('threshold-adapt').innerHTML=(ad.suggestions||[]).map(s=>`<div class="thr"><span>⚙️ 阈值自适应</span><span>${esc(s)}</span></div>`).join('')||'<div class="empty">无自适应建议</div>';
   const t=await api('/thresholds');
   document.getElementById('thresholds').innerHTML=Object.entries(t).flatMap(([k,v])=>Object.entries(v))
     .map(([k,v])=>`<div class="thr"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
@@ -341,6 +349,10 @@ function selDec(kw,btn){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   renderDecisions(kw);
+}
+async function completeAction(aid){
+  const r=await api('/actions/'+aid+'/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(r.ok)loadDecision();  // 重载行动清单显示完成状态 + 阈值自适应
 }
 async function nlAsk(){
   const q=document.getElementById('q').value.trim();

@@ -6,6 +6,7 @@
 import os
 import sys
 import json
+from datetime import datetime
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
@@ -328,17 +329,14 @@ def _decide(module=None):
 
 @app.get("/decision/summary")
 def decision_summary():
-    """决策总结报告：汇总 + 最终建议定版（规则聚合，LLM 可选解读）。"""
+    """决策总结报告：规则聚合 + LLM 解释层(本地Ollama生成自然语言执行摘要, 失败回落规则)。"""
     dec = _decide()
     all_sug = [s for v in dec.values() for s in v]
-    # 按严重度统计
     by_level = {}
     for s in all_sug:
         by_level[s.get("level", "建议")] = by_level.get(s.get("level", "建议"), 0) + 1
-    # 告急/预警优先
     urgent = [s for s in all_sug if s.get("level") == "告急"]
     warn = [s for s in all_sug if s.get("level") == "预警"]
-    # 最终建议定版
     recs = []
     if urgent:
         recs.append(f"立即处理 {len(urgent)} 项告急：{', '.join(u.get('entity','') for u in urgent[:5])}")
@@ -347,12 +345,26 @@ def decision_summary():
     if not urgent and not warn:
         recs.append("各项指标正常，无需紧急干预")
     report = {
-        "total": len(all_sug),
-        "by_level": by_level,
-        "urgent": urgent[:10],
-        "warning": warn[:10],
+        "total": len(all_sug), "by_level": by_level,
+        "urgent": urgent[:10], "warning": warn[:10],
         "final_recommendation": recs,
     }
+    # LLM 解释层("规则算LLM讲"): 用本地 Ollama 生成自然语言执行摘要
+    llm_text = None
+    try:
+        from core.model_llm import llm_generate
+        urls = ", ".join(u.get("entity", "") for u in urgent[:5]) if urgent else ("无告急项" )
+        warns = ", ".join(w.get("entity", "") for w in warn[:5]) if warn else "无预警项"
+        prompt = (f"你是企业运营决策助理。基于以下规则决策结果，写一段简明的经营执行摘要(200字内)：\n"
+                  f"共{len(all_sug)}条决策建议(告急{by_level.get('告急',0)}/预警{by_level.get('预警',0)}/建议{by_level.get('建议',0)})；\n"
+                  f"告急项：{urls}；预警项：{warns}。\n"
+                  f"用中文，指出最需优先处理的事项和理由，语气冷静务实。")
+        llm_text = llm_generate(prompt, temperature=0.3, max_tokens=300)
+        if llm_text == "[模型不可用]":
+            llm_text = None
+    except Exception:
+        llm_text = None
+    report["llm_summary"] = llm_text  # None 时前端回落规则建议
     return {"ok": True, "report": report}
 
 
@@ -368,8 +380,82 @@ def all_decisions():
 
 @app.get("/actions")
 def actions():
+    """行动清单（含完成状态, 支持执行闭环）。"""
+    import hashlib
     all_sug = [s for v in _decide().values() for s in v]
-    return {"ok": True, "actions": act_mod.suggestions_to_actions(all_sug, DATA)}
+    acts = act_mod.suggestions_to_actions(all_sug, DATA)
+    state = _load_actions_state()
+    for a in acts:
+        aid = _action_id(a)
+        a["id"] = aid
+        st = state.get(aid, {})
+        a["status"] = st.get("status", "待确认")
+        a["completed_at"] = st.get("completed_at")
+        a["effect"] = st.get("effect")
+    return {"ok": True, "actions": acts}
+
+
+class ActionReq(BaseModel):
+    effect: str = "已完成"
+
+
+@app.post("/actions/{aid}/complete")
+def complete_action(aid: str, req: ActionReq = None):
+    """标记行动完成（执行闭环第一步）→ 供效果追踪 + 阈值自适应。"""
+    state = _load_actions_state()
+    state[aid] = {"status": "完成", "completed_at": datetime.now().isoformat()[:19],
+                  "effect": (req.effect if req else "已完成")}
+    _save_actions_state(state)
+    return {"ok": True, "action": aid, "status": "完成"}
+
+
+def _action_id(a: dict) -> str:
+    import hashlib
+    raw = f"{a.get('type')}|{a.get('entity')}|{a.get('action')}"
+    return hashlib.md5(raw.encode()).hexdigest()[:12]
+
+
+_ACTIONS_STATE = os.path.join(ROOT, "..", "config", "actions_state.json")
+
+
+def _load_actions_state() -> dict:
+    try:
+        with open(_ACTIONS_STATE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_actions_state(state: dict):
+    with open(_ACTIONS_STATE, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=1)
+
+
+@app.get("/decision/threshold-adapt")
+def threshold_adapt():
+    """执行闭环第三步: 根据已完成行动 + 当前数据, 建议阈值自适应调整。"""
+    from collections import Counter
+    state = _load_actions_state()
+    done = [v for v in state.values() if v.get("status") == "完成"]
+    # 分析完成行动的实体, 结合当前数据给出阈值建议(规则驱动, 零token)
+    suggestions = []
+    if not done:
+        return {"ok": True, "completed": 0, "suggestions": [], "note": "尚无已完成行动, 先执行决策行动清单"}
+    # 已完成的采购/补货行动 → 看对应产品库存是否仍缺(效果追踪)
+    done_entities = Counter(v.get("effect", "") for v in done)
+    inventory = DATA.get("inventory", [])
+    still_short = [i.get("product_id") for i in inventory
+                   if float(i.get("stock", 0)) < float(i.get("safety_stock", 0))]
+    if still_short:
+        suggestions.append(f"仍有 {len(still_short)} 个产品低于安全库存(如 {', '.join(still_short[:3])})，"
+                           f"建议提高 safety_stock 阈值或检查供应链")
+    else:
+        suggestions.append("已完成补货行动后库存已恢复，当前阈值合理")
+    # 供应商绩效类完成 → 综合
+    sugg = [s for s in _decide().get("procurement", []) if s.get("level") == "预警"]
+    if sugg:
+        suggestions.append(f"供应商绩效预警 {len(sugg)} 项，建议纳入供应商评估")
+    return {"ok": True, "completed": len(done), "suggestions": suggestions}
 
 
 @app.get("/thresholds")
