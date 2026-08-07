@@ -21,7 +21,7 @@ import importlib
 import action as act_mod
 from core import domain_model as dm
 
-app = FastAPI(title="sme-decision-ontology API", version="0.11", description="本体驱动中小企业数据决策 API")
+app = FastAPI(title="sme-decision-ontology API", version="0.12", description="本体驱动中小企业数据决策 API")
 
 
 @app.middleware("http")

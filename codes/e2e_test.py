@@ -20,7 +20,7 @@ def ck(name, cond, extra=""):
 def main():
     print("══ 一、版本 ══")
     import run
-    ck("版本 0.11", run.__version__ == "0.11", f"({run.__version__})")
+    ck("版本 0.12", run.__version__ == "0.12", f"({run.__version__})")
 
     print("\n══ 二、数据→本体 ══")
     from core.domain_model import load_all

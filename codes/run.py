@@ -12,7 +12,7 @@ import sys, os, json
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
 
-__version__ = "0.11"
+__version__ = "0.12"
 
 
 def _load_data(data_dir=None):
