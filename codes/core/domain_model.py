@@ -70,6 +70,14 @@ def load_all(data_dir) -> dict[str, list[dict]]:
     return result
 
 
+def load_table(data_dir, table: str) -> list[dict]:
+    """只加载单张表（增量更新用：数据变更只重读变动的表，不全部重建）。"""
+    path = Path(data_dir) / f"{table}.csv"
+    if not path.exists():
+        return []
+    return _load_csv_generic(path)
+
+
 def entity_to_dict(entity) -> dict:
     """兼容旧接口：dict 实体直接返回。"""
     return dict(entity)

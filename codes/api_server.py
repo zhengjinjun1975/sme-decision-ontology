@@ -67,9 +67,39 @@ class AskReq(BaseModel):
 DATA_DIR = os.path.join(ROOT, "..", "data")
 
 
+# 增量数据更新：因需而变，只变数据变动的部分，不全部重建
+_DATA_META = {}  # 表名 -> (mtime_ns, size)
+
+
 def _reload_data():
+    """增量重载：只重读 mtime/size 变更的表(本体schema已成立不动, 决策/图按需从DATA计算)。"""
     global DATA
-    DATA = load_all(DATA_DIR)
+    files = {}
+    if os.path.isdir(DATA_DIR):
+        for fn in os.listdir(DATA_DIR):
+            if fn.endswith(".csv"):
+                p = os.path.join(DATA_DIR, fn)
+                try:
+                    st = os.stat(p)
+                    files[fn[:-4]] = (st.st_mtime_ns, st.st_size)
+                except OSError:
+                    continue
+    # 移除被删除的表
+    for t in list(DATA):
+        if t not in files:
+            del DATA[t]
+    # 只重读变更的表(增量)
+    from core import domain_model as _dm
+    for t, meta in files.items():
+        if _DATA_META.get(t) != meta:
+            try:
+                DATA[t] = _dm.load_table(DATA_DIR, t)
+            except Exception:
+                DATA[t] = []
+            _DATA_META[t] = meta
+    # 更新元数据缓存(含未变表, 避免下次误判)
+    for t, meta in files.items():
+        _DATA_META[t] = meta
 
 
 def _infer_domain(table: str) -> str:
