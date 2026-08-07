@@ -29,6 +29,90 @@ def load_schema(path: str) -> dict:
     return schema
 
 
+# ═══════════════ Palantir 风格深化：对象类型/属性语义/类型体系/链接类型 ═══════════════
+_REF_HINTS = ("_id", "_code", "_no", "id")
+_MEASURE_HINTS = ("qty", "amount", "price", "cost", "stock", "pct", "days", "months", "age", "limit", "rank", "rate", "num", "weight", "size")
+_DATE_HINTS = ("date", "time", "day", "install", "create")
+_CATEGORY_HINTS = ("category", "type", "status", "state", "kind", "flag", "grade", "level")
+
+
+def _infer_prop_role(col: str, ptype: str) -> str:
+    """属性语义角色分类(identifier/reference/measure/category/timestamp/text) — Palantir Property 语义。"""
+    low = col.lower()
+    if low == "id" or (low.endswith("_id") and ptype == "string"):
+        return "identifier"
+    if col.endswith("_id") or col.endswith("_code"):
+        return "reference"
+    if ptype == "number" or any(h in low for h in _MEASURE_HINTS):
+        return "measure"
+    if ptype == "date" or any(h in low for h in _CATEGORY_HINTS):
+        return "category"
+    if any(h in low for h in _DATE_HINTS):
+        return "timestamp"
+    return "text"
+
+
+def classify_properties(schema: dict) -> dict:
+    """为每个实体的属性标注语义角色(identifier/reference/measure/category/timestamp/text)。"""
+    for e in schema.get("entities", []):
+        for a in e.get("attributes", []):
+            a["role"] = _infer_prop_role(a["name"], a.get("type", "string"))
+        # 主键标识
+        for a in e.get("attributes", []):
+            if a["name"] == e.get("key"):
+                a["role"] = "identifier"
+    return schema
+
+
+def build_class_hierarchy(schema: dict) -> list:
+    """类型体系(Type hierarchy)：Enterprise → BusinessObject → 业务域类 → 实体(Is-A)。
+    Palantir 式对象类型分类，跨行业自适应(实体按 domain 归入业务域类)。"""
+    hierarchy = [
+        {"name": "Enterprise", "super": None, "label": "企业"},
+        {"name": "BusinessObject", "super": "Enterprise", "label": "业务对象"},
+    ]
+    # 业务域类(来自实体 domain)
+    domains = {}
+    for e in schema.get("entities", []):
+        d = e.get("domain", "其他域")
+        domains.setdefault(d, {"name": d, "super": "BusinessObject", "label": d, "children": []})
+        domains[d]["children"].append(e["id"])
+    for d in domains.values():
+        hierarchy.append({"name": d["name"], "super": "BusinessObject", "label": d["label"], "entities": d["children"]})
+    # Category 类(产品类别 Is-A)
+    for e in schema.get("entities", []):
+        if "category" in [a["name"] for a in e.get("attributes", [])]:
+            hierarchy.append({"name": f"{e['id']}Category", "super": e["id"], "label": f"{e['label']}类别", "kind": "is_a"})
+    return hierarchy
+
+
+def enrich_links(schema: dict) -> dict:
+    """链接类型(Link Types)：关系补 inverse 反向标签 + 类型(kind: data 数据链/derived 派生)。"""
+    for r in schema.get("relations", []):
+        if r.get("abstract"):
+            r["kind"] = "derived"
+        else:
+            r["kind"] = "data"
+        r["inverse"] = {"Product→Supplier": "供应商提供产品", "Product→Inventory": "产品库存", "Product→Sale": "产品销售",
+                        "Sale→Customer": "客户购买", "Purchase→Supplier": "供应商供货", "Purchase→Product": "产品被采购",
+                        "Production→Product": "产品被生产", "Production→Equipment": "设备被使用", "Payment→Customer": "客户付款"}.get(
+            f"{r['from']}→{r['to']}", "关联")
+    return schema
+
+
+def build_ontology_model(data: dict, schema: dict) -> dict:
+    """构建 Palantir 风格企业本体模型：对象类型(带属性语义) + 链接类型 + 类型体系 + 语义域。"""
+    schema = classify_properties(schema)
+    schema = enrich_links(schema)
+    return {
+        "object_types": schema["entities"],   # 对象类型(含属性语义角色)
+        "link_types": schema["relations"],     # 链接类型(含 inverse/kind)
+        "type_hierarchy": build_class_hierarchy(schema),  # 类型体系(Is-A)
+        "semantic_domains": sorted({e.get("domain", "其他域") for e in schema["entities"]}),
+        "instance_counts": {e["id"]: len(data.get(e.get("table", ""), [])) for e in schema["entities"]},
+    }
+
+
 def _infer_relations(data: dict) -> list:
     """外键推断（自动，简化）：`*_id`/`*_code` 列指向另一实体主键 → 关系。"""
     inferred = []

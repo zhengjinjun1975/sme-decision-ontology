@@ -270,6 +270,15 @@ def graph_full():
             "counts": {"nodes": len(nodes), "edges": len(edges)}, "domains": domains}
 
 
+@app.get("/ontology/model")
+def ontology_model():
+    """Palantir 风格深化企业本体模型：对象类型(属性语义)+链接类型+类型体系+语义域。"""
+    from core import ontology as ont
+    schema = _effective_schema()
+    model = ont.build_ontology_model(DATA, schema)
+    return {"ok": True, "model": model}
+
+
 @app.get("/graph/{entity}/{eid}")
 def graph_traverse(entity: str, eid: str):
     """本体图遍历（跨域）：从某实体实例出发的相关实体。"""
