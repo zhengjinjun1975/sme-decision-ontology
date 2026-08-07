@@ -514,14 +514,50 @@ def threshold_adapt():
 def thresholds():
     return json.load(open(os.path.join(ROOT, "..", "config", "thresholds.json"), encoding="utf-8"))
 
+class PngReq(BaseModel):
+    data: str = ""
+    filename: str = "企业本体图.png"
+
+
+@app.post("/export/ontology-png")
+def export_ontology_png(req: PngReq):
+    """把前端 ECharts 渲染的本体完整图(PNG base64)保存到桌面。"""
+    import base64
+    if not req.data or "," not in req.data:
+        return {"ok": False, "error": "无图像数据"}
+    b64 = req.data.split(",", 1)[1]
+    try:
+        raw = base64.b64decode(b64)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+    os.makedirs(desktop, exist_ok=True)
+    safe = os.path.basename(req.filename) or "企业本体图.png"
+    path = os.path.join(desktop, safe)
+    with open(path, "wb") as f:
+        f.write(raw)
+    return {"ok": True, "path": path}
+
 
 @app.post("/ask")
 def ask(req: AskReq):
-    """自然语言问决策：结构化关键字路由（规则算），歧义时回显校验（NL 是辅助）。"""
+    """自然语言问决策：结构化关键字路由（规则算）→ LLM 兜底（规则未命中用本地Ollama回答）。"""
     q = req.question
     hits = [m for m, kws in NL_ROUTES.items() if any(k in q for k in kws)]
     if not hits:
-        return {"ok": True, "mode": "miss", "answer": "未识别决策域。可问：库存/采购/销售/设备 相关决策。"}
+        # LLM 兜底: 规则未命中 → 用本地 Ollama 结合决策数据回答
+        try:
+            from core.model_llm import llm_generate
+            dec = _decide()
+            summary = "；".join(f"{mod}:{len(v)}条" for mod, v in dec.items())
+            prompt = (f"你是企业运营决策助理。企业当前决策概况：{summary}。\n"
+                      f"用户问题：{q}\n请结合企业运营常识与决策概况回答，简明务实(150字内)，若不相关请说明。")
+            ans = llm_generate(prompt, temperature=0.3, max_tokens=200)
+            if ans and ans != "[模型不可用]":
+                return {"ok": True, "mode": "llm", "answer": ans}
+        except Exception:
+            pass
+        return {"ok": True, "mode": "miss", "answer": "未识别决策域。可问：库存/采购/销售/设备 相关决策（LLM 兜底暂不可用，可问具体决策域）。"}
     if len(hits) == 1:
         return {"ok": True, "mode": "rule", "module": hits[0], "decisions": _decide(hits[0]).get(hits[0], [])}
     # 歧义 → 回显校验（OpenClaw 建议：NL 结果强制确认）
