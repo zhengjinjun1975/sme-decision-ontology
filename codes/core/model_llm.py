@@ -58,9 +58,14 @@ def llm_generate(prompt: str, temperature: float = 0.1, max_tokens: int = 200) -
     models = cfg.get("models", {})
     order = [active] + [k for k in models if k != active]  # 当前激活优先，其余降级
     for name in order:
-        m = models.get(name)
-        if not m or not m.get("base_url"):
+        m = dict(models.get(name) or {})
+        if not m.get("base_url"):
             continue
+        # 云端 key 优先: 环境变量 DEEPSEEK_API_KEY(权威来源, 不落盘) > config 里的 key
+        if name != "local_ollama":
+            env_key = os.environ.get("DEEPSEEK_API_KEY") or _read_env_key()
+            if env_key:
+                m["api_key"] = env_key
         try:
             out = _call_openai(m["base_url"], m.get("model"), m.get("api_key", ""),
                                prompt, temperature, max_tokens)
@@ -69,6 +74,18 @@ def llm_generate(prompt: str, temperature: float = 0.1, max_tokens: int = 200) -
         except Exception:
             continue
     return "[模型不可用]"
+
+
+def _read_env_key() -> str:
+    """从用户环境(HKCU\Environment\DEEPSEEK_API_KEY)读 key, 避免依赖当前进程 env。"""
+    try:
+        import subprocess, re
+        r = subprocess.run(["reg", "query", r"HKCU\Environment", "/v", "DEEPSEEK_API_KEY"],
+                           capture_output=True, text=True)
+        m = re.search(r"DEEPSEEK_API_KEY\s+REG_SZ\s+(\S+)", r.stdout)
+        return m.group(1) if m else ""
+    except Exception:
+        return ""
 
 
 def check_active_model() -> dict:
@@ -84,12 +101,14 @@ def check_active_model() -> dict:
         return {"ok": True, "active": active, "provider": "local",
                 "model": m.get("model"), "note": "本地Ollama(离线可用, 本体建模辅助/问答兜底/摘要)"}
     # 云端
-    if not m.get("api_key"):
+    env_key = os.environ.get("DEEPSEEK_API_KEY") or _read_env_key()
+    has_key = bool(m.get("api_key")) or bool(env_key)
+    if not has_key:
         return {"ok": False, "active": active, "provider": "cloud",
                 "model": m.get("model"),
-                "error": f"云端模型 '{active}' 未配置API Key：请到模型设置粘贴DeepSeek API Key，或切换回本地模型"}
+                "error": f"云端模型 '{active}' 未配置API Key：请设置环境变量 DEEPSEEK_API_KEY，或切换回本地模型"}
     return {"ok": True, "active": active, "provider": "cloud",
-            "model": m.get("model"), "note": f"云端 {m.get('model')}(需网络+有效key)"}
+            "model": m.get("model"), "note": f"云端 {m.get('model')}(key来自环境变量DEEPSEEK_API_KEY, 需网络)"}
 
 
 if __name__ == "__main__":
