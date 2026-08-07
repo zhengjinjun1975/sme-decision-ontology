@@ -128,7 +128,8 @@ h1 span{color:var(--blue)}
 <!-- 本体建模 -->
 <div id="view-ontology" style="display:none">
   <div class="card">
-    <h2><span class="dot" style="background:var(--purple)"></span>统一领域模型（本体 · 一本体多决策）</h2>
+    <h2><span class="dot" style="background:var(--purple)"></span>统一领域模型（本体 · 一本体多决策）
+      <button class="set" style="float:right;padding:6px 14px;font-size:12px" onclick="exportPng()">💾 保存本体图到本地</button></h2>
     <div class="ontology-graph" id="ontology-graph"><div class="empty">加载中…</div></div>
     <h2 style="margin-top:14px"><span class="dot" style="background:var(--purple)"></span>类型体系（Is-A 企业本体）</h2>
     <div id="ontology-hierarchy"><div class="empty">加载中…</div></div>
@@ -171,7 +172,7 @@ h1 span{color:var(--blue)}
 </div>
 
 <script src="/static/lib/echarts.min.js"></script>
-<script src="/static/instance-graph.js?v=15"></script>
+<script src="/static/instance-graph.js?v=16"></script>
 <script>
 const MODULES=[["inventory","库存"],["procurement","采购"],["sales","销售/信用"],["equipment","设备"]];
 const DECISIONS=[["全部",""],["补货","补货"],["缺货","缺货"],["呆滞","呆滞"],["比价","比价"],["供应商","供应商"],["预测","预测"],["信用","信用"],["维护","维护"],["超额度","超额度"]];
