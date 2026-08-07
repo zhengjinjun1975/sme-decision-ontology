@@ -12,13 +12,16 @@
 body{background:var(--bg);color:var(--fg);font-family:system-ui,"Microsoft YaHei",sans-serif;min-height:100vh;
 background-image:radial-gradient(circle at 20% 20%,rgba(47,107,255,.06),transparent 40%),radial-gradient(circle at 80% 80%,rgba(39,174,96,.05),transparent 40%);}
 .wrap{max-width:1100px;margin:0 auto;padding:28px}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 h1{font-size:22px;font-weight:700}
 h1 span{color:var(--blue)}
 .sub{color:var(--dim);font-size:12px;margin-top:4px}
+.viewnav{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.viewnav button{padding:10px 20px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--dim);cursor:pointer;font-size:13px;font-weight:600}
+.viewnav button.active,.viewnav button:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
-.card h2{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;color:var(--fg)}
+.card h2{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .card h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block}
 .item{padding:12px 14px;border-radius:12px;background:var(--bg);margin-bottom:10px;border:1px solid var(--line)}
 .item:hover{border-color:var(--blue)}
@@ -31,18 +34,28 @@ h1 span{color:var(--blue)}
 .tag.预警,.tag.高{background:#fef4e6;color:var(--orange)}
 .tag.建议,.tag.中{background:#eaf0ff;color:var(--blue)}
 .ask{display:flex;gap:10px;margin-bottom:16px}
-.ask input{flex:1;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);
-color:var(--fg);font-size:14px;outline:none;box-shadow:var(--shadow)}
+.ask input{flex:1;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:14px;outline:none;box-shadow:var(--shadow)}
 .ask input:focus{border-color:var(--blue)}
-.ask button{padding:12px 24px;border-radius:12px;border:none;background:var(--blue);color:#fff;font-size:14px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(47,107,255,.25)}
+.ask button{padding:12px 24px;border-radius:12px;border:none;background:var(--blue);color:#fff;font-size:14px;cursor:pointer;font-weight:600}
 .ask button:hover{filter:brightness(1.1)}
 .nav{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
 .nav button{padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:var(--card);color:var(--dim);cursor:pointer;font-size:13px}
 .nav button.active,.nav button:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
-.count{color:var(--dim);font-size:11px;margin-left:auto}
+.count{color:var(--dim);font-size:11px}
 .empty{color:var(--dim);font-size:13px;padding:20px;text-align:center}
 .thr{display:flex;justify-content:space-between;padding:8px 0;font-size:12px;border-bottom:1px solid var(--line)}
 .thr span:last-child{color:var(--blue);font-weight:600}
+.entity-card{display:flex;justify-content:space-between;padding:10px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);margin-bottom:8px;font-size:13px}
+.entity-card .label{font-weight:600}
+.entity-card .fields{color:var(--dim);font-size:11px;margin-top:2px}
+.rel-chip{display:inline-block;padding:4px 10px;border-radius:16px;background:#eaf0ff;color:var(--blue);font-size:11px;margin:3px 4px 3px 0}
+.model-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);margin-bottom:10px}
+.model-item .name{font-weight:600;font-size:13px}
+.model-item .base{color:var(--dim);font-size:11px}
+.model-item button{padding:6px 14px;border-radius:16px;border:none;background:var(--blue);color:#fff;font-size:12px;cursor:pointer}
+.model-item button.active{background:var(--green)}
+.src-row{display:flex;justify-content:space-between;padding:8px 0;font-size:12px;border-bottom:1px solid var(--line)}
+.src-row span:last-child{color:var(--blue);font-weight:600}
 @media(max-width:700px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -53,25 +66,52 @@ color:var(--fg);font-size:14px;outline:none;box-shadow:var(--shadow)}
   <div class="count" id="status">连接中…</div>
 </header>
 
-<div class="ask">
-  <input id="q" placeholder="自然语言问决策：如「库存补货」「设备维护」「采购和库存」" onkeydown="if(event.key==='Enter')nlAsk()">
-  <button onclick="nlAsk()">问决策</button>
+<div class="viewnav">
+  <button class="active" onclick="showView('decision',this)">📊 决策建议</button>
+  <button onclick="showView('ontology',this)">🧬 本体建模</button>
+  <button onclick="showView('data',this)">🗂️ 数据接入</button>
+  <button onclick="showView('model',this)">🤖 模型切换</button>
 </div>
 
-<div class="nav" id="nav"></div>
+<!-- 决策视图 -->
+<div id="view-decision">
+  <div class="ask">
+    <input id="q" placeholder="自然语言问决策：如「库存补货」「设备维护」「采购和库存」" onkeydown="if(event.key==='Enter')nlAsk()">
+    <button onclick="nlAsk()">问决策</button>
+  </div>
+  <div class="nav" id="nav"></div>
+  <div class="grid">
+    <div class="card" style="grid-column:1/-1">
+      <h2><span class="dot"></span>决策建议 <span class="count" id="totalCount"></span></h2>
+      <div id="decisions"><div class="empty">加载中…</div></div>
+    </div>
+    <div class="card"><h2><span class="dot" style="background:var(--orange)"></span>行动清单</h2><div id="actions"><div class="empty">加载中…</div></div></div>
+    <div class="card"><h2><span class="dot" style="background:var(--green)"></span>决策阈值</h2><div id="thresholds"><div class="empty">加载中…</div></div></div>
+  </div>
+</div>
 
-<div class="grid">
-  <div class="card" style="grid-column:1/-1">
-    <h2><span class="dot"></span>决策建议 <span class="count" id="totalCount"></span></h2>
-    <div id="decisions"><div class="empty">加载中…</div></div>
+<!-- 本体建模视图 -->
+<div id="view-ontology" style="display:none">
+  <div class="grid">
+    <div class="card"><h2><span class="dot" style="background:var(--green)"></span>核心实体（统一领域模型）</h2><div id="ontology-entities"><div class="empty">加载中…</div></div></div>
+    <div class="card"><h2><span class="dot" style="background:var(--blue)"></span>实体关系（一本体多决策）</h2><div id="ontology-relations"><div class="empty">加载中…</div></div></div>
   </div>
+</div>
+
+<!-- 数据接入视图 -->
+<div id="view-data" style="display:none">
   <div class="card">
-    <h2><span class="dot" style="background:var(--orange)"></span>行动清单</h2>
-    <div id="actions"><div class="empty">加载中…</div></div>
+    <h2><span class="dot" style="background:var(--orange)"></span>数据源状态（多源接入）</h2>
+    <div id="data-sources"><div class="empty">加载中…</div></div>
+    <p style="color:var(--dim);font-size:11px;margin-top:12px">放真实台账 CSV 到 data/ 目录，或对接 SQLite/MySQL/PG（data_mapper），重启自动加载。</p>
   </div>
+</div>
+
+<!-- 模型切换视图 -->
+<div id="view-model" style="display:none">
   <div class="card">
-    <h2><span class="dot" style="background:var(--green)"></span>决策阈值</h2>
-    <div id="thresholds"><div class="empty">加载中…</div></div>
+    <h2><span class="dot" style="background:var(--purple,#8e44ad)"></span>模型配置（本地优先 + 远端降级）</h2>
+    <div id="model-list"><div class="empty">加载中…</div></div>
   </div>
 </div>
 </div>
@@ -80,7 +120,7 @@ color:var(--fg);font-size:14px;outline:none;box-shadow:var(--shadow)}
 const MODULES=[["inventory","库存"],["procurement","采购"],["sales","销售/信用"],["equipment","设备"]];
 let allDecisions={};
 async function api(path){const r=await fetch(path);return r.json();}
-function esc(s){return String(s||"").replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
+function esc(s){return String(s??"").replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
 function item(s){
   const tag=esc(s.level),ent=esc(s.entity),act=esc(s.action),rea=esc(s.reason);
   return `<div class="item"><div class="top"><span class="entity">${ent}</span><span class="tag ${tag}">${tag}</span></div>
@@ -90,24 +130,55 @@ function renderDecisions(module){
   const el=document.getElementById('decisions');
   const sug=(module?allDecisions[module]:Object.values(allDecisions).flat())||[];
   document.getElementById('totalCount').textContent=`${sug.length} 条`;
-  el.innerHTML=sug.length? sug.map(item).join('') : '<div class="empty">无决策建议</div>';
+  el.innerHTML=sug.length?sug.map(item).join(''):'<div class="empty">无决策建议</div>';
 }
-async function loadAll(){
+async function loadDecision(){
   const d=await api('/decisions'); allDecisions=d.decisions;
-  document.getElementById('status').textContent='已连接';
   document.getElementById('nav').innerHTML=MODULES.map(([m,label],i)=>
-    `<button class="${i===0?'active':''}" onclick="selModule('${m}',this)">${label}<span class="count">${(allDecisions[m]||[]).length}</span></button>`).join('')
+    `<button class="${i===0?'active':''}" onclick="selModule('${m}',this)">${label}<span class="count" style="margin-left:6px">${(allDecisions[m]||[]).length}</span></button>`).join('')
     +`<button onclick="selModule('',this)">全部</button>`;
   renderDecisions('inventory');
   const a=await api('/actions');
   document.getElementById('actions').innerHTML=(a.actions||[]).slice(0,8).map(x=>
     `<div class="item"><div class="top"><span class="entity">${esc(x.type)}</span><span class="tag ${esc(x.priority)}">${esc(x.priority)}</span></div>
-    <div class="action">${esc(x.action)}</div><div class="reason">${esc(x.reason||'')}</div></div>`).join('')
-    ||'<div class="empty">无待办行动</div>';
+    <div class="action">${esc(x.action)}</div><div class="reason">${esc(x.reason||'')}</div></div>`).join('')||'<div class="empty">无待办行动</div>';
   const t=await api('/thresholds');
-  const flat=Object.entries(t).flatMap(([k,v])=>Object.entries(v));
-  document.getElementById('thresholds').innerHTML=flat.map(([k,v])=>
-    `<div class="thr"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
+  document.getElementById('thresholds').innerHTML=Object.entries(t).flatMap(([k,v])=>Object.entries(v))
+    .map(([k,v])=>`<div class="thr"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
+}
+async function loadOntology(){
+  const r=await api('/ontology');
+  const m=r.model;
+  document.getElementById('ontology-entities').innerHTML=m.entities.map(e=>
+    `<div class="entity-card"><div><div class="label">${esc(e.label)} <span style="color:var(--dim);font-weight:400">${esc(e.name)}</span></div>
+    <div class="fields">${esc(e.fields.join(' · '))}</div></div></div>`).join('');
+  document.getElementById('ontology-relations').innerHTML=m.relations.map(rl=>
+    `<span class="rel-chip">${esc(rl.label)} · ${esc(rl.from)} →${esc(rl.rel)}→ ${esc(rl.to)}</span>`).join('')
+    +'<div class="empty" style="padding:10px 0 0;text-align:left">「一本体多决策」：核心实体建模一次，8 个决策模块复用实体关系。</div>';
+}
+async function loadDataSources(){
+  const r=await api('/data-sources');
+  document.getElementById('data-sources').innerHTML=Object.entries(r.sources).map(([k,v])=>
+    `<div class="src-row"><span>${esc(k)}</span><span>${v.rows} 行 · ${esc(v.file)}</span></div>`).join('')
+    +`<div class="empty" style="padding:12px 0 0;text-align:left">数据目录: ${esc(r.data_dir)}</div>`;
+}
+async function loadModel(){
+  const r=await api('/model');
+  document.getElementById('model-list').innerHTML=Object.entries(r.models).map(([k,v])=>
+    `<div class="model-item"><div><div class="name">${esc(v.name)}</div><div class="base">${esc(v.base_url)}</div></div>
+    <button class="${k===r.active?'active':''}" onclick="switchModel('${k}')">${k===r.active?'✓ 使用中':'切换到'}</button></div>`).join('');
+}
+async function switchModel(k){
+  const r=await fetch('/model',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:k})}).then(r=>r.json());
+  if(r.ok){loadModel();document.getElementById('status').textContent=`模型: ${k}`;}
+}
+function showView(v,btn){
+  document.querySelectorAll('.viewnav button').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  ['decision','ontology','data','model'].forEach(x=>document.getElementById('view-'+x).style.display=(x===v?'':'none'));
+  if(v==='ontology'&&document.getElementById('ontology-entities').innerHTML.includes('加载中'))loadOntology();
+  if(v==='data'&&document.getElementById('data-sources').innerHTML.includes('加载中'))loadDataSources();
+  if(v==='model'&&document.getElementById('model-list').innerHTML.includes('加载中'))loadModel();
 }
 function selModule(m,btn){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('active'));
@@ -123,7 +194,8 @@ async function nlAsk(){
   else{renderDecisions(res.module);}
 }
 function renderRaw(list){document.getElementById('decisions').innerHTML=list.map(item).join('');}
-loadAll();
+document.getElementById('status').textContent='已连接';
+loadDecision();loadOntology();loadDataSources();loadModel();
 </script>
 </body>
 </html>

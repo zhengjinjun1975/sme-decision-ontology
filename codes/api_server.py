@@ -18,6 +18,7 @@ from core.domain_model import load_all
 from core.registry import enabled_modules
 import importlib
 import action as act_mod
+from core import domain_model as dm
 
 app = FastAPI(title="sme-decision-ontology API", version="0.11", description="本体驱动中小企业数据决策 API")
 
@@ -30,6 +31,63 @@ if os.path.isdir(WEB):
 @app.get("/", include_in_schema=False)
 def index():
     return FileResponse(os.path.join(WEB, "index.html"))
+
+
+# 领域模型定义（本体）：实体 + 关系（前端展示本体建模）
+DOMAIN_MODEL = {
+    "entities": [
+        {"name": "Product", "label": "产品", "fields": ["id", "name", "category", "材质", "规格", "cost", "price"]},
+        {"name": "Supplier", "label": "供应商", "fields": ["id", "name", "on_time_pct", "quality_pct"]},
+        {"name": "Inventory", "label": "库存", "fields": ["product_id", "stock", "safety_stock", "lead_time_days"]},
+        {"name": "Sale", "label": "销售", "fields": ["product_id", "date", "qty"]},
+        {"name": "Customer", "label": "客户", "fields": ["id", "name", "order_amount", "aging_days", "credit_limit"]},
+        {"name": "Equipment", "label": "设备", "fields": ["id", "name", "install_date", "warranty_months", "status"]},
+    ],
+    "relations": [
+        {"from": "Product", "rel": "suppliedBy", "to": "Supplier", "label": "供应"},
+        {"from": "Product", "rel": "hasInventory", "to": "Inventory", "label": "库存"},
+        {"from": "Product", "rel": "hasSales", "to": "Sale", "label": "销售"},
+        {"from": "Product", "rel": "producedBy", "to": "Equipment", "label": "生产"},
+        {"from": "Customer", "rel": "places", "to": "Order", "label": "下单"},
+    ],
+}
+
+
+@app.get("/model")
+def get_model():
+    cfg = json.load(open(os.path.join(ROOT, "..", "config", "model_config.json"), encoding="utf-8"))
+    return {"ok": True, "active": cfg.get("active"), "models": cfg.get("models", {})}
+
+
+class ModelReq(BaseModel):
+    active: str
+
+
+@app.post("/model")
+def switch_model(req: ModelReq):
+    p = os.path.join(ROOT, "..", "config", "model_config.json")
+    cfg = json.load(open(p, encoding="utf-8"))
+    if req.active not in cfg.get("models", {}):
+        return {"ok": False, "error": f"未知模型: {req.active}"}
+    cfg["active"] = req.active
+    json.dump(cfg, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    return {"ok": True, "active": req.active}
+
+
+@app.get("/ontology")
+def ontology():
+    return {"ok": True, "model": DOMAIN_MODEL}
+
+
+@app.get("/data-sources")
+def data_sources():
+    # 数据源状态: 各表加载行数 + 文件
+    data_dir = os.path.join(ROOT, "..", "data")
+    src = {}
+    for table, rows in DATA.items():
+        f = os.path.join(data_dir, f"{table}.csv")
+        src[table] = {"rows": len(rows), "file": os.path.basename(f) if os.path.exists(f) else "未找到"}
+    return {"ok": True, "sources": src, "data_dir": data_dir}
 
 DATA = load_all(os.path.join(ROOT, "..", "data"))
 
